@@ -90,6 +90,13 @@ Before closing out a substantial piece of work, run a 30-second after-action rev
 that qualifies under step 3. This is where near-misses and corrections get captured —
 they rarely announce themselves with a stack trace.
 
+If the JARVIS hook (`scripts/jarvis_inbox.py`) is installed, every failed shell command
+was already captured during the session — no memory required. Run
+`scripts/lessons.py inbox` at debrief time and triage: cluster retry loops into one
+lesson, keep only failures whose fix took real effort, log them per step 3, then clear
+with `--clear`. The inbox is raw telemetry, not a log — an entry earns its place only
+after the triage question (*would a future session plausibly hit this again?*).
+
 ### 5. Graduate lessons up the automation ladder
 
 A lesson in a log is memory. Memory can be missed. The endgame for an important
@@ -179,9 +186,14 @@ the global log, not the repo.
 - `scripts/lessons.py` — `search <keywords>` (both logs) · `preflight [files]`
   (lessons matching the files about to change; defaults to the git diff) ·
   `bootstrap [--apply]` (draft lessons from git history) · `save "<title>"` (bump a
-  lesson's ROI counter) · `stats` (hot-spots, automation candidates, top earners,
-  pruning candidates) · `env` (fingerprint for Env: lines). Run it instead of
-  re-implementing log searches by hand.
+  lesson's ROI counter) · `inbox [--all] [--clear]` (triage the JARVIS failure inbox) ·
+  `stats` (hot-spots, automation candidates, top earners, pruning candidates) ·
+  `env` (fingerprint for Env: lines). Run it instead of re-implementing log searches
+  by hand.
+- `scripts/jarvis_inbox.py` — JARVIS telemetry: a PostToolUseFailure hook receiver
+  that appends every failed shell command to `~/.claude/mistakes.jsonl` as it happens,
+  so capture never depends on remembering to debrief. Install once per machine via
+  `references/jarvis-hook.md`; triage with `lessons.py inbox`.
 - `references/automation-ladder.md` — recipes for graduating lessons into guards.
 - `references/session-start-hook.md` — auto-load the logs into every session.
 - `references/log-template.md` — initial log structure and categories.

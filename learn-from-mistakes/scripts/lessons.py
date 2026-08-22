@@ -7,18 +7,21 @@ Usage:
   python3 lessons.py preflight [file...]               # lessons relevant to files you're about to touch
                                                        #   (no args: uses git diff + staged changes)
   python3 lessons.py bootstrap [--apply] [--limit N]   # draft lessons from the repo's git history
-  python3 lessons.py save <title-substring>            # record that a lesson just prevented a repeat (ROI)
-  python3 lessons.py env                               # print an environment fingerprint for Env: lines
+   python3 lessons.py save <title-substring>            # record that a lesson just prevented a repeat (ROI)
+   python3 lessons.py inbox [--all] [--clear]           # triage JARVIS-captured failures (mistakes.jsonl)
+   python3 lessons.py env                               # print an environment fingerprint for Env: lines
 
 Reads the project log (.claude/LESSONS.md, found by walking up from cwd) and the
-global log (~/.claude/LESSONS.md). Only `save` and `bootstrap --apply` write, and
-only to the project log.
+global log (~/.claude/LESSONS.md). Only `save`, `bootstrap --apply`, and
+`inbox --clear` write.
 """
 import fnmatch
+import json
 import os
 import re
 import subprocess
 import sys
+import time
 
 
 def find_logs():
@@ -317,6 +320,64 @@ def cmd_env():
     return 0
 
 
+# ---------- inbox (JARVIS telemetry) ----------
+
+def inbox_path():
+    return os.environ.get("JARVIS_INBOX") or os.path.expanduser("~/.claude/mistakes.jsonl")
+
+
+def _same_project(a, b):
+    a = os.path.normcase(os.path.normpath(a or ""))
+    b = os.path.normcase(os.path.normpath(b or ""))
+    return bool(a) and bool(b) and (a == b or a.startswith(b + os.sep) or b.startswith(a + os.sep))
+
+
+def load_inbox():
+    if not os.path.isfile(inbox_path()):
+        return []
+    out = []
+    for line in open(inbox_path(), encoding="utf-8"):
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            continue
+    return out
+
+
+def cmd_inbox(all_projects=False, clear=False):
+    events = load_inbox()
+    if not events:
+        print("JARVIS inbox is empty — nothing has fallen yet.")
+        return 0
+    cwd = os.getcwd()
+    shown = [e for e in events if all_projects or _same_project(e.get("project"), cwd)]
+    if not shown:
+        print(f"{len(events)} event(s) in the inbox, none from this project. Re-run with --all to see everything.")
+        return 0
+    print(f"JARVIS inbox — {len(shown)} failure(s)"
+          f"{f' (of {len(events)} total)' if all_projects else ' for this project'}\n")
+    for i, e in enumerate(shown, 1):
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(e.get("ts", 0)))
+        code = e.get("exit_code")
+        head = f"[{i}] {when}  exit {'?' if code is None else code}  {e.get('cmd', '')}"
+        if not all_projects and not _same_project(e.get("project"), cwd):
+            head += f"   ({e.get('project', '?')})"
+        print(head)
+        detail = next((l for l in str(e.get("error", "")).splitlines()
+                       if l.strip() and not l.startswith("Exit code")), "")
+        if detail:
+            print(f"    {detail[:140]}")
+    kept = [e for e in events if e not in shown] if clear else None
+    if clear:
+        with open(inbox_path(), "w", encoding="utf-8") as f:
+            f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in kept)
+        print(f"\nCleared {len(shown)} triaged event(s); {len(kept)} remain.")
+    else:
+        print("\nFor each distinct failure worth keeping: log it per the SKILL.md workflow"
+              "\n(verified fix only), then re-run with --clear. Retry loops are one lesson, not N.")
+    return 0
+
+
 def main():
     a = sys.argv[1:]
     if len(a) >= 2 and a[0] == "search":
@@ -330,6 +391,8 @@ def main():
         return cmd_bootstrap(apply="--apply" in a, limit=limit)
     if len(a) == 2 and a[0] == "save":
         return cmd_save(a[1])
+    if a and a[0] == "inbox":
+        return cmd_inbox(all_projects="--all" in a, clear="--clear" in a)
     if a == ["env"]:
         return cmd_env()
     print(__doc__.strip())

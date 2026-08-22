@@ -38,6 +38,9 @@ lessons that keep mattering get built into the suit as automated guards.
   shows top earners (graduate them to guards) and dead weight (prune it).
 - **Environment fingerprints** — `Env:` lines (via `lessons.py env`) keep
   version-specific lessons from misfiring on other machines.
+- **JARVIS telemetry** — a `PostToolUseFailure` hook (`jarvis_inbox.py`) records every
+  failed shell command to a local inbox as it happens; the debrief becomes triage
+  (`lessons.py inbox`) instead of recall.
 
 ## Install
 
@@ -63,9 +66,11 @@ see `learn-from-mistakes/references/session-start-hook.md`.
 learn-from-mistakes/
 ├── SKILL.md                          # the skill itself
 ├── scripts/
-│   └── lessons.py                    # search + stats over the lessons logs
+│   ├── lessons.py                    # search + stats over the lessons logs
+│   └── jarvis_inbox.py               # PostToolUseFailure hook → mistakes.jsonl inbox
 └── references/
     ├── log-template.md               # initial LESSONS.md structure & categories
     ├── automation-ladder.md          # recipes for turning lessons into guards
+    ├── jarvis-hook.md                # install the auto-capture failure hook
     └── session-start-hook.md         # auto-load lessons into every session
 ```
