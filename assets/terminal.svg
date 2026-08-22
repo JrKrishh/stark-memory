@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="330" viewBox="0 0 820 330" role="img" aria-label="shield intercepting a command">
+  <defs>
+    <linearGradient id="tbg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0d1620"/>
+      <stop offset="100%" stop-color="#0a1119"/>
+    </linearGradient>
+  </defs>
+
+  <!-- window -->
+  <rect width="820" height="330" rx="14" fill="url(#tbg)" stroke="#23405c" stroke-width="2"/>
+  <rect width="820" height="38" rx="14" fill="#132c44"/>
+  <circle cx="24" cy="19" r="6" fill="#ff5f56"/><circle cx="44" cy="19" r="6" fill="#ffbd2e"/><circle cx="64" cy="19" r="6" fill="#27c93f"/>
+  <text x="410" y="24" text-anchor="middle" font-family="'Consolas', monospace" font-size="13" fill="#5f7d9c">session — stark-memory active</text>
+
+  <g font-family="'Consolas', 'Courier New', monospace" font-size="16">
+    <!-- prompt -->
+    <text x="28" y="78" fill="#9fe8b4">$</text>
+    <text x="46" y="78" fill="#e8f1fa">./build.sh --all</text>
+
+    <!-- shield block -->
+    <g>
+      <rect x="20" y="100" rx="8" width="700" height="92" fill="#1a0f12" stroke="#c81e35"/>
+      <text x="36" y="128" fill="#ff8177">&#9888; stark-memory shield — command matches HIGH severity lesson</text>
+      <text x="36" y="154" fill="#ffb3ac">[2026-08-01] build.sh deletes the data directory</text>
+      <text x="36" y="180" fill="#ffd166">Prevention: never run bare `build.sh` - use make build. Confirm?</text>
+    </g>
+
+    <!-- claude takes advice -->
+    <text x="28" y="228" fill="#7de8ff">Claude: lesson on file &#8594; taking the safe route.</text>
+    <text x="28" y="262" fill="#9fe8b4">$</text>
+    <text x="46" y="262" fill="#e8f1fa">make build</text>
+    <text x="150" y="262" fill="#5f7d9c"># data/ untouched &#10003;</text>
+
+    <text x="28" y="300" fill="#3d587a">telemetry: { "shield": true, "lesson": "build.sh deletes...", "hits": 2 } &#8594; ~/.claude/mistakes.jsonl</text>
+  </g>
+</svg>

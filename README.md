@@ -1,16 +1,8 @@
 <div align="center">
 
-<img src="assets/logo.svg" width="150" alt="stark-memory — arc-reactor memory core"/>
+<img src="assets/banner.svg" width="100%" alt="stark-memory — self-improving memory for Claude Code"/>
 
-# stark-memory
-
-**Self-improving memory for Claude Code.** Every mistake gets logged once, applied
-instantly the next time, and eventually built into the machine so it can't happen again.
-
-> *"A mistake is only expensive the first time. The second time, it should be free.
-> The third time, it should be impossible."*
-
-![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
 </div>
 
@@ -24,6 +16,10 @@ memory of past failures — **per project** (`.claude/LESSONS.md`) and **across 
 destructive commands before they run, a **reflex** that applies the logged fix the instant
 a known failure reappears, and JARVIS telemetry that records every failure automatically.
 Lessons compound instead of evaporating when the session ends.
+
+<div align="center">
+<img src="assets/terminal.svg" width="100%" alt="The shield intercepting a destructive command before it runs"/>
+</div>
 
 ```mermaid
 flowchart LR

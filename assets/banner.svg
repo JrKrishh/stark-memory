@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="stark-memory banner">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e2235"/>
+      <stop offset="60%" stop-color="#081420"/>
+      <stop offset="100%" stop-color="#101b2c"/>
+    </linearGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#eafcff"/>
+      <stop offset="35%" stop-color="#7de8ff"/>
+      <stop offset="70%" stop-color="#18a8d8"/>
+      <stop offset="100%" stop-color="#0b5f86"/>
+    </radialGradient>
+    <linearGradient id="redRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b5e"/>
+      <stop offset="55%" stop-color="#c81e35"/>
+      <stop offset="100%" stop-color="#8f1226"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1200" height="300" rx="24" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="1197" height="297" rx="23" fill="none" stroke="#23405c" stroke-width="2"/>
+
+  <!-- faint grid -->
+  <g stroke="#14293f" stroke-width="1">
+    <line x1="0" y1="75" x2="1200" y2="75"/><line x1="0" y1="150" x2="1200" y2="150"/><line x1="0" y1="225" x2="1200" y2="225"/>
+    <line x1="200" y1="0" x2="200" y2="300"/><line x1="400" y1="0" x2="400" y2="300"/><line x1="600" y1="0" x2="600" y2="300"/><line x1="800" y1="0" x2="800" y2="300"/><line x1="1000" y1="0" x2="1000" y2="300"/>
+  </g>
+
+  <!-- reactor mark -->
+  <g transform="translate(150,150)">
+    <circle r="104" fill="none" stroke="#3d5876" stroke-width="10" stroke-dasharray="34 14" stroke-linecap="round"/>
+    <circle r="82" fill="none" stroke="#22405f" stroke-width="2"/>
+    <circle r="64" fill="none" stroke="url(#redRing)" stroke-width="12"/>
+    <circle r="44" fill="url(#coreGlow)" filter="url(#soft)" opacity="0.9"/>
+    <circle r="40" fill="url(#coreGlow)"/>
+    <path d="M0 -32 L28 20 L-28 20 Z" fill="#07131f" opacity="0.92"/>
+    <path d="M0 -22 L19 14 L-19 14 Z" fill="none" stroke="#bff3ff" stroke-width="5" stroke-linejoin="round"/>
+    <circle cy="-104" r="6" fill="#ffd166"/>
+    <circle cx="71" cy="71" r="5" fill="#ffd166"/>
+    <circle cx="-71" cy="71" r="4" fill="#ffd166"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="330" y="140" font-family="'Segoe UI', Arial, sans-serif" font-size="76" font-weight="700"
+        letter-spacing="4" fill="#f4f9ff">STARK<tspan fill="#7de8ff">-</tspan><tspan fill="#ffd166">MEMORY</tspan></text>
+  <text x="334" y="182" font-family="'Segoe UI', Arial, sans-serif" font-size="26" fill="#a8c0d8">
+    Self-improving memory for Claude Code</text>
+
+  <!-- feature chips -->
+  <g font-family="'Consolas', 'Courier New', monospace" font-size="17" font-weight="600">
+    <rect x="333" y="212" rx="12" width="118" height="34" fill="#132c44" stroke="#2a4d70"/>
+    <text x="352" y="235" fill="#7de8ff">SHIELD</text>
+    <rect x="463" y="212" rx="12" width="112" height="34" fill="#132c44" stroke="#2a4d70"/>
+    <text x="486" y="235" fill="#ffd166">REFLEX</text>
+    <rect x="587" y="212" rx="12" width="130" height="34" fill="#132c44" stroke="#2a4d70"/>
+    <text x="603" y="235" fill="#9fe8b4">TELEMETRY</text>
+    <rect x="729" y="212" rx="12" width="146" height="34" fill="#132c44" stroke="#2a4d70"/>
+    <text x="745" y="235" fill="#f0937f">GRADUATION</text>
+  </g>
+</svg>
