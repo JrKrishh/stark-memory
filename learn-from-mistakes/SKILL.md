@@ -1,6 +1,6 @@
 ---
 name: learn-from-mistakes
-description: Self-improvement memory for Claude — learn from past errors like Tony Stark rebuilding his suit after every fight. Use this skill whenever an error, failed command, test failure, bug, wrong assumption, near-miss, or user correction happens during work, AND at the start of any non-trivial task to check whether a similar mistake was already made and solved before. It logs each mistake with its root cause and fix to a per-project LESSONS.md (plus a global cross-project log), applies the known solution immediately when a logged error recurs, and graduates recurring or dangerous lessons into automated guards (validators, tests, hooks) so they can't happen again. Trigger it even if the user doesn't mention "lessons" or "mistakes" — any moment where something went wrong, almost went wrong, or where past failures could inform current work, is a reason to use it.
+description: Self-improvement memory for Claude — learn from past errors like Tony Stark rebuilding his suit after every fight. Use this skill whenever an error, failed command, test failure, bug, wrong assumption, near-miss, or user correction happens during work, AND at the start of any non-trivial task to check whether a similar mistake was already made and solved before. It logs each mistake with its root cause and fix to a per-project LESSONS.md (plus a global cross-project log), applies the known solution immediately when a logged error recurs, and graduates recurring or dangerous lessons into automated guards (validators, tests, hooks) so they can't happen again. Trigger it even if the user doesn't mention "lessons" or "mistakes" — any moment where something went wrong, almost went wrong, or where past failures could inform current work, is a reason to use it. Also use it to bootstrap a lessons log from a repo's git history of fix/revert commits, to pre-flight a planned change against lessons scoped to the files being touched, and to track flaky tests so known flakes stop being re-debugged.
 ---
 
 # Learn From Mistakes
@@ -34,9 +34,18 @@ is something worth writing — don't create empty logs preemptively.
 At the start of any non-trivial task — and before a failure-prone category of action
 (builds, deploys, migrations, destructive commands, tricky APIs) — read both logs if
 they exist. `scripts/lessons.py search <keywords>` finds matching entries across both
-in one step. If an entry's **Trigger** matches what you're about to do, follow its
-**Prevention** line from the start, and say briefly that you're applying a logged
-lesson so the user sees the log paying off.
+in one step, and `scripts/lessons.py preflight` matches the files you're about to
+touch (or the current git diff) against entries' **Paths** globs — run it before
+editing code in an area you don't fully know. If an entry's **Trigger** matches what
+you're about to do, follow its **Prevention** line from the start, and say briefly
+that you're applying a logged lesson so the user sees the log paying off.
+
+When a lesson actually saves you — prevents a repeat, or supplies the fix in one
+step — record it: `scripts/lessons.py save "<entry title>"`. The **Saves** count is
+the log's ROI ledger: it justifies each entry's existence, drives pruning (no saves,
+no recurrences, old → delete), and 3+ saves marks a lesson that has earned a real
+guard. In a big log, consult selectively — preflight + search surface the few
+relevant entries instead of re-reading everything; context is a budget.
 
 Tip: the consult step shouldn't depend on discipline. Offer the user the session-start
 hook from `references/session-start-hook.md` once — it injects the logs into context
@@ -113,7 +122,16 @@ consolidate the weakest. A log nobody can scan in 30 seconds stops being consult
 Append under the matching category heading (create it if new). The **Prevention** line
 is what future sessions act on — make it imperative and specific. **Severity**:
 `low` (annoyance), `medium` (broken build/wrong results), `high` (data loss,
-destructive, security). **Recurred** and **Automation** may be omitted until relevant.
+destructive, security). Optional fields, added when relevant:
+
+- **Paths:** glob(s) the lesson is scoped to (`src/payments/**`) — this is what makes
+  `preflight` fire when those files are about to change. Add it whenever a lesson is
+  about a specific area of the codebase.
+- **Recurred:** / **Automation:** — the recurrence trail and the guard built (step 5).
+- **Saves:** how many times this lesson prevented a repeat (bumped by `lessons.py save`).
+- **Env:** environment fingerprint (`lessons.py env` prints one) for lessons that only
+  hold on specific tool versions or platforms — stops a node-22 lesson misfiring on a
+  node-18 machine.
 
 ```markdown
 ### [2026-08-22] build.sh deletes the data/ directory
@@ -130,10 +148,39 @@ destructive, security). **Recurred** and **Automation** may be omitted until rel
 A near-miss entry looks the same — note in **What happened** that it was caught in
 time; severity reflects what *would* have happened.
 
+## SWE power moves
+
+**Bootstrap from git history.** A repo's history is a pre-existing mistake database:
+every `fix:`, `revert:`, and hotfix commit is a lesson nobody wrote down. In a repo
+whose log is empty (or thin), offer to run `scripts/lessons.py bootstrap` — it mines
+fix-commits, clusters them by the area they touched, and drafts path-tagged entries
+(dry-run by default; `--apply` appends them under a clearly-marked unverified
+section). Drafts are leads, not lessons: read the underlying commits, replace the
+UNVERIFIED lines with real root causes and prevention rules, and delete drafts with
+no reusable insight. Never treat an unverified draft as an established lesson.
+
+**Flaky tests.** Track flaky tests as first-class lessons under a `Flaky Tests`
+category: the failing test's name in the title, its failure signature in **What
+happened**, the workaround and root-cause status in **Fix**/**Prevention**, dates in
+**Recurred**. Then a familiar failure is answered from the log — "known flake,
+re-run once" vs "new real failure" — instead of being re-debugged. A flake that
+keeps recurring graduates like any lesson: fix the root cause, or quarantine it
+*visibly* with the team's consent (never silently skip a test).
+
+**Team sharing.** The project log lives at `.claude/LESSONS.md` — a committable
+path. Suggest committing it (and any guards) to the repo once it has real entries:
+then every teammate's Claude inherits every teammate's scars, and lessons survive
+machine changes. Keep entries merge-friendly: append within categories, stable
+titles, one entry per lesson. Portable, non-project-specific lessons still belong in
+the global log, not the repo.
+
 ## Bundled tools
 
-- `scripts/lessons.py` — `search <keywords>` (both logs), `stats` (counts by
-  category/severity, recurrence hot-spots, automation candidates). Run it instead of
+- `scripts/lessons.py` — `search <keywords>` (both logs) · `preflight [files]`
+  (lessons matching the files about to change; defaults to the git diff) ·
+  `bootstrap [--apply]` (draft lessons from git history) · `save "<title>"` (bump a
+  lesson's ROI counter) · `stats` (hot-spots, automation candidates, top earners,
+  pruning candidates) · `env` (fingerprint for Env: lines). Run it instead of
   re-implementing log searches by hand.
 - `references/automation-ladder.md` — recipes for graduating lessons into guards.
 - `references/session-start-hook.md` — auto-load the logs into every session.

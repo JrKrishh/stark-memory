@@ -24,6 +24,8 @@ Newest entries go at the top of their category.
 
 ## Near-Misses
 
+## Flaky Tests
+
 ## Other
 ```
 
@@ -37,9 +39,13 @@ Suggested categories (rename or add freely to fit the project):
 | Testing | flaky tests, test-runner quirks, coverage traps |
 | User Corrections | things the user explicitly corrected |
 | Near-Misses | almost-failures caught in time (severity = what would have happened) |
+| Flaky Tests | flaky test signatures, workarounds, and root-cause status |
+| Bootstrapped From Git History (unverified drafts) | created by `lessons.py bootstrap --apply`; verify then re-file |
 | Other | anything that fits nowhere else |
 
 Entry fields: **Severity** (low / medium / high), **Trigger**, **What happened**,
-**Root cause**, **Fix**, **Prevention** are the core; **Recurred** (dates the lesson
-was applied again) and **Automation** (what guard was built, if any) are added when
-they become relevant. See SKILL.md for a full example entry.
+**Root cause**, **Fix**, **Prevention** are the core; added when they become
+relevant: **Paths** (globs that make `preflight` fire for a change), **Recurred**
+(dates the lesson was applied again), **Automation** (what guard was built),
+**Saves** (ROI counter bumped by `lessons.py save`), and **Env** (environment
+fingerprint for version/platform-specific lessons). See SKILL.md for a full example.
