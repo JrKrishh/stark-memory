@@ -46,7 +46,10 @@ automatically at the start of every session.
 
 When an error occurs, check the logs before debugging from scratch. On a match, apply
 the logged **Fix** immediately. Then update the entry: append today's date to its
-**Recurred** line. A recurrence is a signal, not just a save — see step 5.
+**Recurred** line (add the line if missing) — and leave the heading's original date
+alone. The heading date records the first occurrence; **Recurred** records the
+history, and that trail is what triggers graduation. A recurrence is a signal, not
+just a save — see step 5.
 
 If the logged fix *doesn't* work, debug normally, then update that entry with the
 better answer rather than adding a duplicate. The log holds the current best answer,
