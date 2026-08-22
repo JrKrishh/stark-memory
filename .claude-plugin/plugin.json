@@ -1,0 +1,41 @@
+{
+  "name": "stark-memory",
+  "description": "Self-improving memory for Claude Code: lessons logs, JARVIS failure telemetry, reflex fix-injection, and a shield that gates high-severity commands before they run",
+  "version": "1.0.0",
+  "author": {
+    "name": "Boopathi Raja"
+  },
+  "homepage": "https://github.com/JrKrishh/stark-memory",
+  "license": "MIT",
+  "keywords": ["memory", "lessons", "mistakes", "hooks", "self-improvement"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "timeout": 10,
+            "statusMessage": "stark-memory shield"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "timeout": 10,
+            "statusMessage": "JARVIS logging failure"
+          }
+        ]
+      }
+    ]
+  }
+}

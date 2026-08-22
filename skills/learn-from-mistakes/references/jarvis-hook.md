@@ -5,6 +5,10 @@ capture automatic: Claude Code fires `PostToolUseFailure` on every failed tool c
 and the receiver appends shell failures to `~/.claude/mistakes.jsonl`. At debrief
 time, run `scripts/lessons.py inbox` to triage.
 
+> **Installed via the plugin?** Skip this file — `plugin.json` bundles both hooks
+> (shield + reflex) with `${CLAUDE_PLUGIN_ROOT}` paths and they wire themselves on
+> install. This walkthrough is for the manual skill-copy route.
+
 ## Install — add to `~/.claude/settings.json`
 
 Merge this group into the existing `"hooks"` object (don't replace other hooks):

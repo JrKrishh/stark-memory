@@ -196,6 +196,23 @@ def reflex(cmd, project_dir):
         return None
 
 
+def _paths_in_scope(globs):
+    """True when at least one FILE under cwd matches the entry's Paths globs.
+    (py3.8 quirk: 'dir/**' also yields the bare directory, so match files only.)
+    Bounded walk; fail-open on glob trouble so unverifiable scope keeps old
+    behavior."""
+    import glob as gmod
+    import itertools
+    for pat in globs:
+        try:
+            for hit in itertools.islice(gmod.iglob(pat, recursive=True), 50):
+                if os.path.isfile(hit):
+                    return True
+        except Exception:
+            return True
+    return False
+
+
 def shield(cmd, project_dir):
     """Pre-execution guard over Severity:high lessons. Returns ask-reason or None.
 
@@ -212,6 +229,9 @@ def shield(cmd, project_dir):
     try:
         if not L.field(best, "Severity").lower().startswith("high"):
             return None  # medium/low stay advisory territory (reflex handles them)
+        globs = [g.strip() for g in re.split(r"[,\s]+", L.field(best, "Paths")) if g.strip()]
+        if globs and not _paths_in_scope(globs):
+            return None  # scoped lesson, wrong neighborhood: shape match alone isn't enough
         reason = (f"stark-memory shield — this command matches HIGH severity lesson "
                   f"[{best['date']}] {best['title']}. "
                   f"Prevention: {L.field(best, 'Prevention')[:250] or 'see lesson'}. "

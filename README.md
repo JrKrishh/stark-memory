@@ -41,14 +41,27 @@ flowchart LR
 
 ## Install
 
-### Step 1 — Copy the skill into Claude Code (30 seconds)
+### Option A — Plugin (recommended: one command, hooks included)
+
+In Claude Code:
+
+```
+/plugin marketplace add JrKrishh/stark-memory
+/plugin install stark-memory@stark-memory
+/reload-plugins
+```
+
+That's the whole install: the skill, **both JARVIS hooks (shield + reflex), and telemetry**
+wire themselves automatically. Invoke explicitly with `/stark-memory:learn-from-mistakes`.
+
+### Option B — Manual skill copy
 
 **macOS / Linux**
 
 ```bash
 git clone https://github.com/JrKrishh/stark-memory.git
 mkdir -p ~/.claude/skills
-cp -r stark-memory/learn-from-mistakes ~/.claude/skills/
+cp -r stark-memory/skills/learn-from-mistakes ~/.claude/skills/
 ```
 
 **Windows PowerShell**
@@ -56,14 +69,14 @@ cp -r stark-memory/learn-from-mistakes ~/.claude/skills/
 ```powershell
 git clone https://github.com/JrKrishh/stark-memory.git
 New-Item -ItemType Directory -Force "$HOME\.claude\skills" | Out-Null
-Copy-Item -Recurse stark-memory\learn-from-mistakes "$HOME\.claude\skills\"
+Copy-Item -Recurse stark-memory\skills\learn-from-mistakes "$HOME\.claude\skills\"
 ```
 
 > Prefer project-only? Copy into `<project>/.claude/skills/` instead.
-> That's it — Claude Code picks the skill up automatically in every new session.
-> Invoke explicitly any time with `/learn-from-mistakes`.
+> Claude Code picks the skill up automatically in every new session;
+> invoke explicitly any time with `/learn-from-mistakes`.
 
-### Step 2 — (Recommended) Enable JARVIS: capture + reflex + shield
+### Step 2 — Manual hooks (skip if you installed via plugin)
 
 Without this step the skill still works, but logging depends on Claude remembering to debrief.
 With these two hooks, **failures are recorded as they happen, logged fixes are injected at
@@ -111,12 +124,12 @@ Merge into `~/.claude/settings.json`:
   **the reflex** injects a logged fix into context the moment a command fails,
   and **the shield** asks for confirmation before a command matching a
   high-severity lesson even executes.
-- Full walkthrough incl. Windows specifics: [`references/jarvis-hook.md`](learn-from-mistakes/references/jarvis-hook.md).
+- Full walkthrough incl. Windows specifics: [`references/jarvis-hook.md`](skills/learn-from-mistakes/references/jarvis-hook.md).
 
 ### Step 3 — (Optional) Auto-load lessons at session start
 
 A `SessionStart` hook can inject your lesson logs into context every session:
-[`references/session-start-hook.md`](learn-from-mistakes/references/session-start-hook.md).
+[`references/session-start-hook.md`](skills/learn-from-mistakes/references/session-start-hook.md).
 
 ---
 
@@ -186,7 +199,7 @@ A lesson that keeps mattering shouldn't stay a note. The automation ladder:
 | 3 | Impossible | PreToolUse hook or CI gate |
 
 Graduate when a lesson **recurs a second time**, or immediately if severity is high.
-Recipes: [`references/automation-ladder.md`](learn-from-mistakes/references/automation-ladder.md).
+Recipes: [`references/automation-ladder.md`](skills/learn-from-mistakes/references/automation-ladder.md).
 
 ---
 
@@ -207,18 +220,22 @@ through human-reviewed triage.
 ## Layout
 
 ```
+.claude-plugin/
+├── plugin.json                        # plugin manifest (hooks bundled via ${CLAUDE_PLUGIN_ROOT})
+└── marketplace.json                   # installable as a Claude Code marketplace
 assets/
 └── logo.svg                          # the arc-reactor memory core
-learn-from-mistakes/
-├── SKILL.md                          # the skill itself
-├── scripts/
-│   ├── lessons.py                    # search · preflight · inbox · bootstrap · save · stats
-│   └── jarvis_inbox.py               # PostToolUseFailure hook → mistakes.jsonl inbox
-└── references/
-    ├── log-template.md               # initial LESSONS.md structure & categories
-    ├── automation-ladder.md          # recipes for turning lessons into guards
-    ├── jarvis-hook.md                # install the auto-capture failure hook
-    └── session-start-hook.md         # auto-load lessons into every session
+skills/
+└── learn-from-mistakes/
+    ├── SKILL.md                      # the skill itself
+    ├── scripts/
+    │   ├── lessons.py                # search · preflight · inbox · recall · patterns · stale · graduate
+    │   └── jarvis_inbox.py           # shield (PreToolUse) + capture & reflex (PostToolUseFailure)
+    └── references/
+        ├── log-template.md           # initial LESSONS.md structure & categories
+        ├── automation-ladder.md      # recipes for turning lessons into guards
+        ├── jarvis-hook.md            # hook install walkthrough (manual route)
+        └── session-start-hook.md     # auto-load lessons into every session
 ```
 
 ## Requirements
