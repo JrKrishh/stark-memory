@@ -187,6 +187,8 @@ the global log, not the repo.
   (lessons matching the files about to change; defaults to the git diff) ·
   `bootstrap [--apply]` (draft lessons from git history) · `save "<title>"` (bump a
   lesson's ROI counter) · `inbox [--all] [--clear]` (triage the JARVIS failure inbox) ·
+  `recall <question>` (federated: logs + project session RAG + workspace corpora,
+  each source labeled, graceful when absent) ·
   `stats` (hot-spots, automation candidates, top earners, pruning candidates) ·
   `env` (fingerprint for Env: lines). Run it instead of re-implementing log searches
   by hand.

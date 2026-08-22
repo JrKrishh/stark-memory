@@ -116,6 +116,7 @@ python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py inbox --clear  # 
 | `search <keywords>` | Find entries across both logs |
 | `preflight [files...]` | Lessons matching files about to change (defaults to `git diff`) |
 | `inbox [--all] [--clear]` | Triage JARVIS-captured failures (this project by default) |
+| `recall <question>` | Federated query: lesson logs + session RAG + workspace corpora, sources labeled |
 | `bootstrap [--apply]` | Mine fix/revert commits into draft lessons |
 | `save "<title>"` | Bump a lesson's Saves counter — its ROI ledger |
 | `stats` | Categories, hot-spots, graduation candidates, pruning candidates |

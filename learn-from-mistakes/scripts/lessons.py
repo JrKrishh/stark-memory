@@ -9,6 +9,7 @@ Usage:
   python3 lessons.py bootstrap [--apply] [--limit N]   # draft lessons from the repo's git history
    python3 lessons.py save <title-substring>            # record that a lesson just prevented a repeat (ROI)
    python3 lessons.py inbox [--all] [--clear]           # triage JARVIS-captured failures (mistakes.jsonl)
+   python3 lessons.py recall <question>                 # federated: logs + session RAG + workspace corpus
    python3 lessons.py env                               # print an environment fingerprint for Env: lines
 
 Reads the project log (.claude/LESSONS.md, found by walking up from cwd) and the
@@ -378,10 +379,94 @@ def cmd_inbox(all_projects=False, clear=False):
     return 0
 
 
+# ---------- recall (federated memory) ----------
+
+SRAG = os.environ.get("STARK_SRAG") or os.path.expanduser("~/.claude/session-rag/srag.py")
+
+
+def _run(args, timeout=60):
+    try:
+        p = subprocess.run(args, capture_output=True, timeout=timeout)
+        # child output is UTF-8 by convention; never let the locale codec eat it
+        return p.stdout.decode("utf-8", "replace").strip() if p.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _find_dr():
+    d = os.getcwd()
+    while True:
+        p = os.path.join(d, "dynamo-rag", "dr.py")
+        if os.path.isfile(p):
+            return p
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+def cmd_recall(terms):
+    """Federated query: lesson logs + project session RAG + workspace law decks.
+
+    stark-memory owns no new storage — it routes one question to whichever
+    sovereign memory systems exist near this project and labels the sources.
+    Every component degrades gracefully when absent."""
+    query = " ".join(terms)
+    sections = 0
+
+    logs = find_logs()
+    hits = []
+    for scope, path in logs:
+        for e in parse_entries(path):
+            text = (e["title"] + " " + e["body"]).lower()
+            if all(t.lower() in text for t in terms):
+                hits.append((scope, e))
+    print(f"== lessons ({len(logs)} log(s))")
+    if hits:
+        for scope, e in hits[:6]:
+            print_entry(scope, e)
+        sections += 1
+    else:
+        print("   no matching entries\n")
+
+    proj = os.path.basename(os.getcwd())
+    if os.path.isfile(SRAG):
+        out = _run([sys.executable, SRAG, "ask", query, "--project", proj, "--k", "5"])
+        print(f"== sessions (srag, project ~ '{proj}')")
+        if out:
+            print(out + "\n")
+            sections += 1
+        else:
+            print("   srag unavailable or returned nothing\n")
+    else:
+        print("== sessions (srag): not installed\n")
+
+    dr = _find_dr()
+    print("== workspace corpus (dr.py)" if dr else "== workspace corpus (dr.py): not found here")
+    if dr:
+        out = _run([sys.executable, dr, "ask", query, "--fast"])
+        if out:
+            print(out + "\n")
+            sections += 1
+
+    if not sections:
+        print("No memory source answered. This is a cold-start project — "
+              "log the next failure and recall gets smarter.")
+    return 0
+
+
 def main():
+    # never let a locale codepage break printing non-ASCII lessons or telemetry
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     a = sys.argv[1:]
     if len(a) >= 2 and a[0] == "search":
         return cmd_search(a[1:])
+    if len(a) >= 2 and a[0] == "recall":
+        return cmd_recall(a[1:])
     if a == ["stats"]:
         return cmd_stats()
     if a and a[0] == "preflight":
