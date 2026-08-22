@@ -19,10 +19,14 @@ so lessons compound instead of evaporating when the session ends.
 
 ```mermaid
 flowchart LR
-    A["Failure happens"] -->|"JARVIS hook<br>(automatic)"| B[("mistakes.jsonl<br/>inbox")]
-    B -->|"debrief triage<br>(lessons.py inbox)"| C[("LESSONS.md<br/>project + global logs")]
+    A["Command about<br>to run"] -->|"shield: high-severity match<br>asks BEFORE executing"| H{"Human<br>confirms"}
+    B["Failure happens"] -->|"JARVIS hook<br>(automatic)"| I[("mistakes.jsonl<br/>inbox")]
+    I -->|"reflex at failure time"| D2["Logged fix injected<br/>before debugging"]
+    I -->|"debrief triage<br>(lessons.py inbox)"| C[("LESSONS.md<br/>project + global logs")]
     C -->|"consult · search · preflight"| D["Claude applies the<br/>logged fix instantly"]
-    D -->|"recurs twice,<br>or severity: high"| E["Automated guard<br/>validator · test · hook · CI"]
+    C -.->|"Severity: high lessons<br>become guards"| A
+    D -->|"recurs twice"| E["Automated guard<br/>validator · test · hook · CI"]
+    H -->|confirmed safe| F["runs"]
 ```
 
 ---
@@ -80,9 +84,10 @@ Merge into `~/.claude/settings.json`:
 ```
 
 - Replace `~` with an absolute path (`C:/Users/<you>/...` on Windows).
-- Keep it synchronous (no `"async"`): the hook doesn't just record failures —
-  it **reflexes**. When a failed command matches a logged lesson, the known fix
-  is injected into Claude's context immediately, before debugging starts.
+- Keep both hooks synchronous (no `"async"`): they don't just record failures —
+  **the reflex** injects a logged fix into context the moment a command fails,
+  and **the shield** asks for confirmation before a command matching a
+  high-severity lesson even executes.
 - Full walkthrough incl. Windows specifics: [`references/jarvis-hook.md`](learn-from-mistakes/references/jarvis-hook.md).
 
 ### Step 3 — (Optional) Auto-load lessons at session start

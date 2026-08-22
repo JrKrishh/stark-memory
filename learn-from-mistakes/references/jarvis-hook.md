@@ -12,6 +12,20 @@ Merge this group into the existing `"hooks"` object (don't replace other hooks):
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["~/.claude/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "timeout": 10,
+            "statusMessage": "stark-memory shield"
+          }
+        ]
+      }
+    ],
     "PostToolUseFailure": [
       {
         "matcher": "Bash|PowerShell",
@@ -33,11 +47,33 @@ Merge this group into the existing `"hooks"` object (don't replace other hooks):
 - **Exec form** (`command` + `args`) spawns Python directly, no shell quoting issues.
   On Windows, `command` must resolve to a real `.exe` — `python` does. Replace `~`
   with the absolute path (`C:/Users/<you>/...`) since exec form does not expand it.
-- **Keep the hook synchronous** (no `"async": true`): decision-control output
-  (`additionalContext`, i.e. the reflex) only reaches Claude from a synchronous
-  handler. The script is bounded to stay fast — small log scans, no network,
-  no LLM calls in the hot path.
-- The matcher limits capture to shell tools; Edit/Write failures are left out on purpose.
+- **Keep the hooks synchronous** (no `"async": true`): decision-control output
+  (the shield's `permissionDecision`, the reflex's `additionalContext`) only
+  reaches Claude from a synchronous handler. The script is bounded to stay
+  fast — small log scans, no network, no LLM calls in the hot path.
+- The matcher limits both hooks to shell tools; Edit/Write calls are left out on purpose.
+
+## Shield — high-severity lessons block before they bite
+
+On every shell command about to run (`PreToolUse`), the receiver checks it
+against **`Severity: high` entries only**, matching command tokens against the
+entry's *failure-side* text (title, trigger, what happened, root cause — never
+the Fix/Prevention lines, so the safe alternative recommended by a lesson is
+never itself blocked). On a match it returns `permissionDecision: "ask"` with
+the lesson quoted:
+
+```
+stark-memory shield — this command matches HIGH severity lesson [2026-08-01]
+build.sh deletes the data directory. Prevention: never run bare build.sh - use
+make build. Confirm only if this is intentional.
+```
+
+- `"ask"`, never `"deny"`: a fuzzy text match must not hard-block work; the
+  human confirms with the lesson in view. The command does not execute until then.
+- Matching is on the command's shape and fires in any directory — that is the
+  point for destructive commands (they must be questioned everywhere), and why
+  the decision stays with the human rather than an auto-deny.
+- Firings are recorded as `{"shield": true, ...}` telemetry like reflex hits.
 
 ## Reflex — the suit corrects mid-fight
 

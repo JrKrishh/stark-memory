@@ -112,7 +112,9 @@ lesson is to stop being advice and become a mechanism:
   mistake automatically — or the root cause is simply *fixed at the source* (the
   buggy script repaired, the trap deleted). Fixing the source beats guarding it.
 - **Level 3 — Enforced**: a Claude Code hook or CI gate makes the mistake impossible
-  to commit or even to attempt.
+  to commit or even to attempt. The JARVIS shield is the fastest route: any
+  `Severity: high` lesson automatically becomes a PreToolUse confirmation gate
+  (see `references/jarvis-hook.md`), and a CI step or validator can finish the job.
 
 Graduate a lesson when it **recurs a second time**, or immediately when its
 **Severity is high** (data loss, destructive commands, security). Propose the guard to

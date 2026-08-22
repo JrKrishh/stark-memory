@@ -42,6 +42,50 @@ STOPWORDS = {"powershell", "bash", "pwsh", "python", "python3", "node",
 MIN_HITS = 2      # distinct command tokens that must appear in an entry to fire
 
 
+def _tokens(cmd):
+    """Meaningful tokens: whole chunks (build.sh survives as one token) plus
+    their alphanumeric parts. Short flags (--all) are noise by design."""
+    out = set()
+    for chunk in re.split(r"\s+", cmd):
+        c = chunk.strip("`'\"(),;|&").lstrip("./-").lower()
+        if len(c) >= 4 and c not in STOPWORDS:
+            out.add(c)
+            for part in re.split(r"[^a-zA-Z0-9_]+", c):
+                if len(part) >= 4 and part not in STOPWORDS:
+                    out.add(part)
+    return out
+
+
+def _failure_text(L, e):
+    """The failure-description side of an entry (title, trigger, what happened,
+    root cause) — deliberately EXCLUDING Fix/Prevention, whose job is to name
+    the SAFE alternative. Without this, 'never run bare build.sh - use make
+    build' makes the shield block 'make build' itself."""
+    t = " ".join([e["title"], L.field(e, "Trigger"), L.field(e, "What happened"),
+                  L.field(e, "Root cause")]).strip()
+    return t if len(t) >= 25 else e["title"] + " " + e["body"]
+
+
+def _best_match(toks):
+    """Best lesson whose failure-side text contains >=MIN_HITS command tokens.
+    Returns (entry, hits) or (None, 0). Strict on purpose."""
+    try:
+        import lessons as L  # sibling module in scripts/
+    except Exception:
+        return None, 0
+    try:
+        best, best_hits = None, 0
+        for scope, path in L.find_logs():
+            for e in L.parse_entries(path):
+                text = _failure_text(L, e).lower()
+                hits = sum(1 for t in toks if t in text)
+                if hits > best_hits:
+                    best, best_hits = e, hits
+        return (best, best_hits) if best and best_hits >= MIN_HITS else (None, 0)
+    except Exception:
+        return None, 0
+
+
 def signature(entry):
     """What makes two failures 'the same retry loop': project, command, exit
     code, and the first line of output. A flaky command failing differently on
@@ -132,28 +176,12 @@ def capture(payload):
 
 
 def reflex(cmd, project_dir):
-    """Match this failure against the lesson logs; return injection text or None.
-
-    Strict on purpose: >=MIN_HITS distinct meaningful tokens from the command
-    must appear in an entry's title+body. One winner, capped output."""
-    try:
-        import lessons as L  # sibling module in scripts/
-    except Exception:
+    """Match this failure against the lesson logs; return injection text or None."""
+    best, hits = _best_match(_tokens(cmd))
+    if not best:
         return None
     try:
-        toks = {t.lower() for t in re.split(r"[^a-zA-Z0-9_]+", cmd)
-                if len(t) >= 4 and t.lower() not in STOPWORDS}
-        if not toks:
-            return None
-        best, best_hits = None, 0
-        for scope, path in L.find_logs():
-            for e in L.parse_entries(path):
-                text = (e["title"] + " " + e["body"]).lower()
-                hits = sum(1 for t in toks if t in text)
-                if hits > best_hits:
-                    best, best_hits = e, hits
-        if not best or best_hits < MIN_HITS:
-            return None
+        import lessons as L
         parts = [f"stark-memory reflex — this failure matches logged lesson [{best['date']}] {best['title']}"]
         prevention = L.field(best, "Prevention")
         fix = L.field(best, "Fix")
@@ -162,8 +190,35 @@ def reflex(cmd, project_dir):
         if prevention:
             parts.append(f"Prevention rule: {prevention[:300]}")
         _store({"ts": int(time.time()), "project": project_dir,
-                "reflex": True, "lesson": best["title"], "hits": best_hits}, dedup=False)
+                "reflex": True, "lesson": best["title"], "hits": hits}, dedup=False)
         return "\n".join(parts)[:800]
+    except Exception:
+        return None
+
+
+def shield(cmd, project_dir):
+    """Pre-execution guard over Severity:high lessons. Returns ask-reason or None.
+
+    The reflex helps you recover; the shield exists so the destructive command
+    never runs at all. 'ask' (never 'deny') keeps a fuzzy text match from ever
+    hard-blocking legitimate work — the human decides with the lesson in view."""
+    try:
+        import lessons as L
+    except Exception:
+        return None
+    best, hits = _best_match(_tokens(cmd))
+    if not best:
+        return None
+    try:
+        if not L.field(best, "Severity").lower().startswith("high"):
+            return None  # medium/low stay advisory territory (reflex handles them)
+        reason = (f"stark-memory shield — this command matches HIGH severity lesson "
+                  f"[{best['date']}] {best['title']}. "
+                  f"Prevention: {L.field(best, 'Prevention')[:250] or 'see lesson'}. "
+                  f"Confirm only if this is intentional.")
+        _store({"ts": int(time.time()), "project": project_dir,
+                "shield": True, "lesson": best["title"], "hits": hits}, dedup=False)
+        return reason[:600]
     except Exception:
         return None
 
@@ -180,6 +235,15 @@ def main():
                 os.chdir(cwd)  # lesson logs resolve relative to the session project
             except OSError:
                 pass
+        if payload.get("hook_event_name") == "PreToolUse":
+            cmd = (payload.get("tool_input") or {}).get("command") or ""
+            reason = shield(cmd, cwd) if cmd else None
+            if reason:
+                print(json.dumps({"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "ask",
+                    "permissionDecisionReason": reason}}))
+            return 0
         cmd, _err = capture(payload)
         msg = reflex(cmd, cwd) if cmd else None
         if msg:
