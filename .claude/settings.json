@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'for f in .claude/LESSONS.md \"$HOME/.claude/LESSONS.md\"; do [ -f \"$f\" ] && { echo \"=== Lessons log: $f ===\"; cat \"$f\"; }; done; true'",
+            "statusMessage": "Loading lessons logs"
+          }
+        ]
+      }
+    ]
+  }
+}
