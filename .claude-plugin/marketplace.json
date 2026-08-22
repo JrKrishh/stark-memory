@@ -10,10 +10,18 @@
       "name": "stark-memory",
       "source": "./",
       "description": "Lessons logs + JARVIS telemetry + reflex fix injection + high-severity command shield",
-      "version": "1.0.0",
-      "author": { "name": "Boopathi Raja" },
+      "version": "1.0.1",
+      "author": {
+        "name": "Boopathi Raja"
+      },
       "license": "MIT",
-      "keywords": ["memory", "lessons", "mistakes", "hooks", "self-improvement"]
+      "keywords": [
+        "memory",
+        "lessons",
+        "mistakes",
+        "hooks",
+        "self-improvement"
+      ]
     }
   ]
 }
