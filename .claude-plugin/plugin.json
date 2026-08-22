@@ -1,13 +1,19 @@
 {
   "name": "stark-memory",
   "description": "Self-improving memory for Claude Code: lessons logs, JARVIS failure telemetry, reflex fix-injection, and a shield that gates high-severity commands before they run",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": {
     "name": "Boopathi Raja"
   },
   "homepage": "https://github.com/JrKrishh/stark-memory",
   "license": "MIT",
-  "keywords": ["memory", "lessons", "mistakes", "hooks", "self-improvement"],
+  "keywords": [
+    "memory",
+    "lessons",
+    "mistakes",
+    "hooks",
+    "self-improvement"
+  ],
   "hooks": {
     "SessionStart": [
       {
@@ -15,7 +21,10 @@
           {
             "type": "command",
             "command": "python",
-            "args": ["-c", "import pathlib\nfor f in [pathlib.Path.cwd()/'.claude'/'LESSONS.md', pathlib.Path.home()/'.claude'/'LESSONS.md']:\n    if f.is_file():\n        print('=== Lessons log: '+str(f)+' ===')\n        print(f.read_text(encoding='utf-8', errors='replace')[:4000])"],
+            "args": [
+              "-c",
+              "import pathlib\nfor f in [pathlib.Path.cwd()/'.claude'/'LESSONS.md', pathlib.Path.home()/'.claude'/'LESSONS.md']:\n    if f.is_file():\n        print('=== Lessons log: '+str(f)+' ===')\n        print(f.read_text(encoding='utf-8', errors='replace')[:4000])"
+            ],
             "timeout": 10,
             "statusMessage": "stark-memory lessons"
           }
@@ -29,7 +38,9 @@
           {
             "type": "command",
             "command": "python",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"
+            ],
             "timeout": 10,
             "statusMessage": "stark-memory shield"
           }
@@ -43,7 +54,9 @@
           {
             "type": "command",
             "command": "python",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/jarvis_inbox.py"
+            ],
             "timeout": 10,
             "statusMessage": "JARVIS logging failure"
           }

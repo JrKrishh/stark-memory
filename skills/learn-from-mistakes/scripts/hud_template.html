@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="$refresh">
+<title>stark-memory // J.A.R.V.I.S.</title>
+<style>
+:root{--cy:#7de8ff;--gd:#ffd166;--rd:#ff6b5e;--gn:#9fe8b4;--dim:#4a6a86;--line:#16344e;--bg:#04080f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:
+ radial-gradient(1400px 700px at 50% -20%,#0a1a2b 0%,transparent 55%),
+ radial-gradient(900px 500px at 90% 110%,#0a1c2a 0%,transparent 50%),
+ var(--bg);
+ font-family:Consolas,'Courier New',monospace;color:#cfe6f5;min-height:100vh;padding:16px 22px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9;
+ background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(125,232,255,.018) 2px 4px)}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:8;
+ box-shadow:inset 0 0 220px rgba(0,0,0,.75)}
+
+/* ---------- chrome ---------- */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
+ border-bottom:1px solid var(--line);padding-bottom:10px}
+.brand{font-size:16px;letter-spacing:7px;color:var(--cy)}
+.brand small{color:var(--dim);letter-spacing:3px;font-size:11px;display:block;margin-top:3px}
+.posture{text-align:right}
+.posture b{font-size:21px;letter-spacing:4px;color:$pcolor;text-shadow:0 0 18px currentColor}
+.posture span{font-size:11px;color:var(--dim);letter-spacing:2px}
+
+.deck{display:grid;grid-template-columns:290px 1fr 400px;gap:14px}
+
+/* angled panels with corner brackets */
+.panel{position:relative;border:1px solid var(--line);background:rgba(9,22,36,.6);
+ padding:12px;margin-bottom:14px;
+ clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.panel::before,.panel::after{content:'';position:absolute;width:14px;height:14px;pointer-events:none}
+.panel::before{top:-1px;left:-1px;border-top:2px solid var(--cy);border-left:2px solid var(--cy)}
+.panel::after{bottom:-1px;left:-1px;border-bottom:2px solid var(--cy);border-left:2px solid var(--cy)}
+.panel h2{font-size:10px;letter-spacing:5px;color:var(--dim);margin-bottom:9px;font-weight:600}
+
+/* ---------- reactor ---------- */
+.reactorwrap{position:relative;width:266px;height:266px;margin:4px auto}
+.sweep{position:absolute;inset:-30px;border-radius:50%;
+ background:conic-gradient(from 0deg,rgba(125,232,255,.14) 0deg,transparent 70deg);
+ animation:sweep 5s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.ring{transform-origin:133px 133px;animation:spin 26s linear infinite}
+.ring.rev{animation-direction:reverse;animation-duration:40s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{animation:pulse 2.6s ease-in-out infinite;transform-origin:133px 133px}
+@keyframes pulse{0%,100%{opacity:.82}50%{opacity:1}}
+.corenum{font-size:38px;font-weight:700;fill:#eafcff}
+.rlabel{font-size:10px;fill:var(--dim);letter-spacing:3px}
+.gnum{font-size:13px;font-weight:700;fill:#eafcff}
+
+/* ---------- project cards ---------- */
+.pcard{border-left:2px solid var(--cy);padding:7px 9px;margin-bottom:9px;background:rgba(125,232,255,.04)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--dim)}
+.dot.g{background:var(--gn);box-shadow:0 0 8px var(--gn)} .dot.a{background:var(--gd)} .dot.x{background:var(--dim)}
+.prow{display:flex;align-items:center;gap:6px}
+.pname{font-size:13px;color:#e8f1fa} .page{margin-left:auto;color:var(--dim);font-size:11px}
+.ppath{color:var(--dim);font-size:10px;margin:3px 0 0 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bars{display:flex;height:5px;margin:7px 0 4px;background:#0d2033}
+.b{height:100%} .b.c{background:var(--cy)} .b.s{background:var(--rd)} .b.r{background:var(--gd)}
+.pnums{display:flex;gap:12px;font-size:10px;color:var(--dim)}
+
+/* ---------- sessions ---------- */
+details.scard{border:1px solid var(--line);border-left:3px solid var(--cy);margin-bottom:8px;
+ background:rgba(125,232,255,.03)}
+details.scard.hot{border-left-color:var(--rd);background:rgba(200,30,53,.05)}
+details.scard summary{list-style:none;cursor:pointer;padding:8px 10px;display:flex;align-items:center;gap:10px;font-size:12px}
+details.scard summary::-webkit-details-marker{display:none}
+.sid{color:var(--cy)} .sproj{color:#e8f1fa;font-weight:700}
+.sage{margin-left:auto;color:var(--dim);font-size:11px}
+.smeta{color:var(--dim);font-size:10px}
+.sbody{border-top:1px dashed var(--line);padding:6px 12px}
+.tag{padding:1px 8px;border-radius:9px;font-size:10px;letter-spacing:1px}
+.tag.s{background:#2a1114;color:var(--rd)} .tag.r{background:#241d0d;color:var(--gd)} .tag.c{background:#0e2434;color:var(--cy)}
+
+/* ---------- tables / misc ---------- */
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:3px 6px;border-bottom:1px solid rgba(125,232,255,.06);white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis;max-width:340px}
+.dim{color:var(--dim)} .gold{color:var(--gd)} .ok{color:var(--gn)}
+.sev.hi{color:var(--rd);font-weight:700}
+.drow{display:flex;justify-content:space-between;padding:3px 2px;border-bottom:1px solid rgba(125,232,255,.06);font-size:11px}
+.drow span{color:var(--dim);letter-spacing:2px} .drow b{color:#cfe6f5}
+footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">STARK-MEMORY <span style="color:var(--rd)">//</span> J.A.R.V.I.S.<small>JUST A RATHER VERY INTELLIGENT MEMORY SYSTEM</small></div>
+  <div class="posture"><b style="color:$pcolor">$posture</b><br><span>$sub</span></div>
+</div>
+
+<div class="deck">
+
+<!-- LEFT: projects + diagnostics -->
+<div>
+  <div class="panel"><h2>PROJECT DIRECTORY</h2>$proj_cards</div>
+  <div class="panel"><h2>SYSTEM DIAGNOSTICS</h2>$diag</div>
+</div>
+
+<!-- CENTER: reactor + sessions -->
+<div>
+  <div class="panel">
+    <h2>REACTOR CORE — CAPTURES BY PROJECT SUITE</h2>
+    <div class="reactorwrap">
+      <div class="sweep"></div>
+      <svg width="266" height="266" viewBox="0 0 266 266">
+        <circle cx="133" cy="133" r="120" fill="none" stroke="#16344e" stroke-width="1"/>
+        <g class="ring"><circle cx="133" cy="133" r="112" fill="none" stroke="#2a4d70"
+          stroke-width="8" stroke-dasharray="28 15" stroke-linecap="round"/></g>
+        <circle cx="133" cy="133" r="96" fill="none" stroke="#ff6b5e" stroke-width="24"
+          stroke-dasharray="$rs 400" transform="rotate(-90 133 133)"/>
+        <g class="ring rev"><circle cx="133" cy="133" r="81" fill="none" stroke="#2a4d70"
+          stroke-width="6" stroke-dasharray="16 11"/></g>
+        <circle cx="133" cy="133" r="81" fill="none" stroke="#ffd166" stroke-width="6"
+          stroke-dasharray="$rr 400" transform="rotate(-90 133 133)"/>
+        <circle cx="133" cy="133" r="65" fill="none" stroke="#9fe8b4" stroke-width="9"
+          stroke-dasharray="$rv 400" transform="rotate(-90 133 133)"/>
+        <g class="core">
+          <circle cx="133" cy="133" r="48" fill="#0a1c2c" stroke="#2a4d70"/>
+          <circle cx="133" cy="133" r="42" fill="none" stroke="#7de8ff" stroke-width="2" opacity=".55"/>
+          <text class="corenum" x="133" y="143" text-anchor="middle">$core</text>
+          <text class="rlabel" x="133" y="161" text-anchor="middle">CAPTURES</text>
+        </g>
+        <text class="rlabel" x="133" y="27" text-anchor="middle">SHIELD $n_sh</text>
+        <text class="rlabel" x="252" y="137" text-anchor="end">REFLEX $n_rf</text>
+        <text class="rlabel" x="133" y="250" text-anchor="middle">SAVES $n_sv</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="panel"><h2>SESSION INTEL — CLICK TO EXPAND ($n_le lessons on file)</h2>
+  $sess_cards
+  </div>
+</div>
+
+<!-- RIGHT: events + ledger -->
+<div>
+  <div class="panel"><h2>LIVE EVENT STREAM</h2>
+    <table><tr><td class="rlabel">TIME</td><td class="rlabel">CLASS</td><td class="rlabel">COMMAND / LESSON</td><td class="rlabel">PROJECT</td></tr>
+    $ev_rows</table>
+  </div>
+  <div class="panel"><h2>LESSON LEDGER ($n_le)</h2>
+    <table><tr><td class="rlabel">SEV</td><td class="rlabel">TITLE</td><td class="rlabel">LOG</td><td class="rlabel">SV</td><td class="rlabel">STATE</td></tr>
+    $les_rows</table>
+  </div>
+</div>
+
+</div>
+
+<footer>GENERATED $stamp · REFRESH ${refresh}s · ALL TELEMETRY LOCAL · STAY FLYABLE</footer>
+</body>
+</html>
