@@ -1,3 +1,7 @@
+<div align="center">
+
+<img src="assets/logo.svg" width="150" alt="stark-memory — arc-reactor memory core"/>
+
 # stark-memory
 
 **Self-improving memory for Claude Code.** Every mistake gets logged once, applied
@@ -8,14 +12,18 @@ instantly the next time, and eventually built into the machine so it can't happe
 
 ![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
+</div>
+
 ---
 
 ## The idea in 10 seconds
 
 Tony Stark never builds the same suit twice. This skill gives every Claude Code session a
 memory of past failures — **per project** (`.claude/LESSONS.md`) and **across all projects**
-(`~/.claude/LESSONS.md`) — plus a JARVIS hook that records every failed command automatically,
-so lessons compound instead of evaporating when the session ends.
+(`~/.claude/LESSONS.md`) — then wires that memory into the loop: a **shield** that questions
+destructive commands before they run, a **reflex** that applies the logged fix the instant
+a known failure reappears, and JARVIS telemetry that records every failure automatically.
+Lessons compound instead of evaporating when the session ends.
 
 ```mermaid
 flowchart LR
@@ -55,16 +63,31 @@ Copy-Item -Recurse stark-memory\learn-from-mistakes "$HOME\.claude\skills\"
 > That's it — Claude Code picks the skill up automatically in every new session.
 > Invoke explicitly any time with `/learn-from-mistakes`.
 
-### Step 2 — (Recommended) Enable JARVIS auto-capture
+### Step 2 — (Recommended) Enable JARVIS: capture + reflex + shield
 
 Without this step the skill still works, but logging depends on Claude remembering to debrief.
-With it, **every failed shell command is recorded as it happens** — no memory required.
+With these two hooks, **failures are recorded as they happen, logged fixes are injected at
+the moment of failure, and high-severity lessons demand confirmation before their commands run**.
 
 Merge into `~/.claude/settings.json`:
 
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["~/.claude/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "timeout": 10,
+            "statusMessage": "stark-memory shield"
+          }
+        ]
+      }
+    ],
     "PostToolUseFailure": [
       {
         "matcher": "Bash|PowerShell",
@@ -103,9 +126,10 @@ Mostly, you don't — the skill runs itself inside sessions:
 
 | Moment | What Claude does |
 |---|---|
+| Before a high-severity command runs | **The shield** asks for confirmation, quoting the logged lesson |
 | Before non-trivial work | Consults both logs; follows any matching **Prevention** rule |
 | Before touching unfamiliar files | Runs `preflight` — surfaces lessons scoped to those exact paths |
-| A logged error reappears | Applies the known fix in one step, stamps the recurrence |
+| A logged error reappears | **The reflex** injects the known fix before debugging starts |
 | After fixing something new | Logs it (severity, trigger, root cause, fix, prevention) |
 | End of a big task | Debriefs: triages the JARVIS inbox, catches near-misses |
 
@@ -183,6 +207,8 @@ through human-reviewed triage.
 ## Layout
 
 ```
+assets/
+└── logo.svg                          # the arc-reactor memory core
 learn-from-mistakes/
 ├── SKILL.md                          # the skill itself
 ├── scripts/

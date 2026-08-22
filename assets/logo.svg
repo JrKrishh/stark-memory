@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="stark-memory logo">
+  <defs>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#eafcff"/>
+      <stop offset="35%" stop-color="#7de8ff"/>
+      <stop offset="70%" stop-color="#18a8d8"/>
+      <stop offset="100%" stop-color="#0b5f86"/>
+    </radialGradient>
+    <linearGradient id="redRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6b5e"/>
+      <stop offset="55%" stop-color="#c81e35"/>
+      <stop offset="100%" stop-color="#8f1226"/>
+    </linearGradient>
+    <linearGradient id="bgSheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10263a"/>
+      <stop offset="100%" stop-color="#081420"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+  </defs>
+
+  <!-- chassis -->
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="url(#bgSheen)"/>
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="none" stroke="#23405c" stroke-width="2"/>
+
+  <!-- outer segmented coil ring -->
+  <circle cx="128" cy="128" r="104" fill="none" stroke="#3d5876"
+          stroke-width="10" stroke-dasharray="34 14" stroke-linecap="round"/>
+
+  <!-- memory orbit: gold lesson nodes -->
+  <circle cx="128" cy="128" r="82" fill="none" stroke="#22405f" stroke-width="2"/>
+  <circle cx="128" cy="46"  r="7" fill="#ffd166"/>
+  <circle cx="199" cy="169" r="6" fill="#ffd166"/>
+  <circle cx="57"  cy="169" r="5" fill="#ffd166"/>
+
+  <!-- hot-rod red ring -->
+  <circle cx="128" cy="128" r="64" fill="none" stroke="url(#redRing)" stroke-width="12"/>
+
+  <!-- arc glow + core -->
+  <circle cx="128" cy="128" r="44" fill="url(#coreGlow)" filter="url(#soft)" opacity="0.9"/>
+  <circle cx="128" cy="128" r="40" fill="url(#coreGlow)"/>
+
+  <!-- reactor triangle -->
+  <path d="M128 96 L156 148 L100 148 Z" fill="#07131f" opacity="0.92"/>
+  <path d="M128 106 L147 142 L109 142 Z" fill="none" stroke="#bff3ff" stroke-width="5" stroke-linejoin="round"/>
+</svg>
