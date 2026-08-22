@@ -1,64 +1,173 @@
-# projektkode
+# stark-memory
 
-Home of the **learn-from-mistakes** skill for Claude Code — a self-improvement memory
-inspired by Tony Stark: every failure gets logged with its root cause and fix, the
-next time the same problem appears the known solution is applied immediately, and
-lessons that keep mattering get built into the suit as automated guards.
+**Self-improving memory for Claude Code.** Every mistake gets logged once, applied
+instantly the next time, and eventually built into the machine so it can't happen again.
 
-## What it does
+> *"A mistake is only expensive the first time. The second time, it should be free.
+> The third time, it should be impossible."*
 
-- **Consults** the project log (`.claude/LESSONS.md`) and the global cross-project
-  log (`~/.claude/LESSONS.md`) before non-trivial or failure-prone work, and follows
-  the prevention rules it finds there.
-- **Recognizes** recurring errors and applies the logged fix in one step, tracking
-  recurrences on the entry.
-- **Logs** each new mistake after its fix is verified — and near-misses and user
-  corrections too, via an end-of-task debrief — with severity, trigger, root cause,
-  fix, and a prevention rule.
-- **Graduates** recurring or high-severity lessons up the automation ladder: from a
-  logged note, to a validator/test/source-fix, to a Claude Code hook or CI gate that
-  makes the mistake impossible.
-- **Maintains** the logs — merging duplicates, promoting portable lessons to the
-  global log, pruning obsolete entries.
+![License](https://img.shields.io/badge/license-MIT-green) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
-### SWE power features
+---
 
-- **Git-history bootstrap** — `lessons.py bootstrap` mines the repo's fix/revert
-  commits and drafts path-tagged starter lessons, so the skill knows a mature
-  repo's scars on day one.
-- **Pre-flight checks** — lessons carry `Paths:` globs; `lessons.py preflight`
-  surfaces the lessons relevant to the exact files about to change (defaults to
-  the current git diff).
-- **Flaky-test memory** — a dedicated category for flake signatures, workarounds,
-  and root-cause status: "known flake, re-run once" vs "new real failure" without
-  re-debugging.
-- **Team sharing** — the project log lives at a committable path; commit it and
-  every teammate's Claude inherits every teammate's lessons.
-- **ROI tracking** — `lessons.py save` bumps a per-entry Saves counter; `stats`
-  shows top earners (graduate them to guards) and dead weight (prune it).
-- **Environment fingerprints** — `Env:` lines (via `lessons.py env`) keep
-  version-specific lessons from misfiring on other machines.
-- **JARVIS telemetry** — a `PostToolUseFailure` hook (`jarvis_inbox.py`) records every
-  failed shell command to a local inbox as it happens; the debrief becomes triage
-  (`lessons.py inbox`) instead of recall.
+## The idea in 10 seconds
+
+Tony Stark never builds the same suit twice. This skill gives every Claude Code session a
+memory of past failures — **per project** (`.claude/LESSONS.md`) and **across all projects**
+(`~/.claude/LESSONS.md`) — plus a JARVIS hook that records every failed command automatically,
+so lessons compound instead of evaporating when the session ends.
+
+```mermaid
+flowchart LR
+    A["Failure happens"] -->|"JARVIS hook<br>(automatic)"| B[("mistakes.jsonl<br/>inbox")]
+    B -->|"debrief triage<br>(lessons.py inbox)"| C[("LESSONS.md<br/>project + global logs")]
+    C -->|"consult · search · preflight"| D["Claude applies the<br/>logged fix instantly"]
+    D -->|"recurs twice,<br>or severity: high"| E["Automated guard<br/>validator · test · hook · CI"]
+```
+
+---
 
 ## Install
 
-Copy the skill folder into your project (or user) skills directory:
+### Step 1 — Copy the skill into Claude Code (30 seconds)
+
+**macOS / Linux**
 
 ```bash
-# Project-level
-mkdir -p .claude/skills
-cp -r learn-from-mistakes .claude/skills/
-
-# Or user-level, available in every project
+git clone https://github.com/JrKrishh/stark-memory.git
 mkdir -p ~/.claude/skills
-cp -r learn-from-mistakes ~/.claude/skills/
+cp -r stark-memory/learn-from-mistakes ~/.claude/skills/
 ```
 
-Claude Code picks it up automatically; you can also invoke it explicitly with
-`/learn-from-mistakes`. For automatic lesson loading at the start of every session,
-see `learn-from-mistakes/references/session-start-hook.md`.
+**Windows PowerShell**
+
+```powershell
+git clone https://github.com/JrKrishh/stark-memory.git
+New-Item -ItemType Directory -Force "$HOME\.claude\skills" | Out-Null
+Copy-Item -Recurse stark-memory\learn-from-mistakes "$HOME\.claude\skills\"
+```
+
+> Prefer project-only? Copy into `<project>/.claude/skills/` instead.
+> That's it — Claude Code picks the skill up automatically in every new session.
+> Invoke explicitly any time with `/learn-from-mistakes`.
+
+### Step 2 — (Recommended) Enable JARVIS auto-capture
+
+Without this step the skill still works, but logging depends on Claude remembering to debrief.
+With it, **every failed shell command is recorded as it happens** — no memory required.
+
+Merge into `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["~/.claude/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
+            "async": true,
+            "timeout": 10,
+            "statusMessage": "JARVIS logging failure"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- Replace `~` with an absolute path (`C:/Users/<you>/...` on Windows).
+- Full walkthrough incl. Windows specifics: [`references/jarvis-hook.md`](learn-from-mistakes/references/jarvis-hook.md).
+
+### Step 3 — (Optional) Auto-load lessons at session start
+
+A `SessionStart` hook can inject your lesson logs into context every session:
+[`references/session-start-hook.md`](learn-from-mistakes/references/session-start-hook.md).
+
+---
+
+## How to use
+
+Mostly, you don't — the skill runs itself inside sessions:
+
+| Moment | What Claude does |
+|---|---|
+| Before non-trivial work | Consults both logs; follows any matching **Prevention** rule |
+| Before touching unfamiliar files | Runs `preflight` — surfaces lessons scoped to those exact paths |
+| A logged error reappears | Applies the known fix in one step, stamps the recurrence |
+| After fixing something new | Logs it (severity, trigger, root cause, fix, prevention) |
+| End of a big task | Debriefs: triages the JARVIS inbox, catches near-misses |
+
+Your part is two commands at a natural stopping point:
+
+```bash
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py inbox          # what failed lately?
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py inbox --clear  # after logging the keepers
+```
+
+### CLI cheat sheet — `lessons.py`
+
+| Command | What it does |
+|---|---|
+| `search <keywords>` | Find entries across both logs |
+| `preflight [files...]` | Lessons matching files about to change (defaults to `git diff`) |
+| `inbox [--all] [--clear]` | Triage JARVIS-captured failures (this project by default) |
+| `bootstrap [--apply]` | Mine fix/revert commits into draft lessons |
+| `save "<title>"` | Bump a lesson's Saves counter — its ROI ledger |
+| `stats` | Categories, hot-spots, graduation candidates, pruning candidates |
+| `env` | Print an environment fingerprint for `Env:` lines |
+
+### What a lesson looks like
+
+```markdown
+### [2026-08-22] build.sh deletes the data/ directory
+- **Severity:** high
+- **Paths:** scripts/**
+- **Trigger:** building the project
+- **What happened:** ./build.sh wiped data/ and the build then failed
+- **Root cause:** cleanup line `rm -rf $OUT data` removes data/ — wrong path
+- **Fix:** restored data/ from backup; built with `make build` instead
+- **Prevention:** never run ./build.sh — always `make build`
+```
+
+The **Prevention** line is the payload — it's what future sessions act on.
+**Paths:** globs make `preflight` fire before the right files change.
+
+---
+
+## From memory to machine
+
+A lesson that keeps mattering shouldn't stay a note. The automation ladder:
+
+| Level | Meaning | Enforced by |
+|---|---|---|
+| 0 | Logged | exists in LESSONS.md |
+| 1 | Habit | consulted before matching work |
+| 2 | Guard | validator / test / fixed at the source |
+| 3 | Impossible | PreToolUse hook or CI gate |
+
+Graduate when a lesson **recurs a second time**, or immediately if severity is high.
+Recipes: [`references/automation-ladder.md`](learn-from-mistakes/references/automation-ladder.md).
+
+---
+
+## Where everything lives
+
+| File | Scope | Commit it? |
+|---|---|---|
+| `<project>/.claude/LESSONS.md` | this codebase's quirks | yes — teammates' Claude inherits the scars |
+| `~/.claude/LESSONS.md` | portable, cross-project lessons | local only |
+| `~/.claude/mistakes.jsonl` | raw JARVIS telemetry | **never** — may contain command output |
+
+Privacy notes: the inbox stays local and self-trims past 400 lines; entries carry no secrets
+by policy (`Env:` fingerprints hold versions, not tokens); lessons enter `LESSONS.md` only
+through human-reviewed triage.
+
+---
 
 ## Layout
 
@@ -66,7 +175,7 @@ see `learn-from-mistakes/references/session-start-hook.md`.
 learn-from-mistakes/
 ├── SKILL.md                          # the skill itself
 ├── scripts/
-│   ├── lessons.py                    # search + stats over the lessons logs
+│   ├── lessons.py                    # search · preflight · inbox · bootstrap · save · stats
 │   └── jarvis_inbox.py               # PostToolUseFailure hook → mistakes.jsonl inbox
 └── references/
     ├── log-template.md               # initial LESSONS.md structure & categories
@@ -74,3 +183,11 @@ learn-from-mistakes/
     ├── jarvis-hook.md                # install the auto-capture failure hook
     └── session-start-hook.md         # auto-load lessons into every session
 ```
+
+## Requirements
+
+Python 3.8+ (standard library only) · Claude Code · git (for `preflight`/`bootstrap`)
+
+## License
+
+[MIT](LICENSE) © Boopathi Raja
