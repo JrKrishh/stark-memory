@@ -21,6 +21,24 @@ lessons that keep mattering get built into the suit as automated guards.
 - **Maintains** the logs — merging duplicates, promoting portable lessons to the
   global log, pruning obsolete entries.
 
+### SWE power features
+
+- **Git-history bootstrap** — `lessons.py bootstrap` mines the repo's fix/revert
+  commits and drafts path-tagged starter lessons, so the skill knows a mature
+  repo's scars on day one.
+- **Pre-flight checks** — lessons carry `Paths:` globs; `lessons.py preflight`
+  surfaces the lessons relevant to the exact files about to change (defaults to
+  the current git diff).
+- **Flaky-test memory** — a dedicated category for flake signatures, workarounds,
+  and root-cause status: "known flake, re-run once" vs "new real failure" without
+  re-debugging.
+- **Team sharing** — the project log lives at a committable path; commit it and
+  every teammate's Claude inherits every teammate's lessons.
+- **ROI tracking** — `lessons.py save` bumps a per-entry Saves counter; `stats`
+  shows top earners (graduate them to guards) and dead weight (prune it).
+- **Environment fingerprints** — `Env:` lines (via `lessons.py env`) keep
+  version-specific lessons from misfiring on other machines.
+
 ## Install
 
 Copy the skill folder into your project (or user) skills directory:
