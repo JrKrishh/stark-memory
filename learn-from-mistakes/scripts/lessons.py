@@ -10,6 +10,9 @@ Usage:
    python3 lessons.py save <title-substring>            # record that a lesson just prevented a repeat (ROI)
    python3 lessons.py inbox [--all] [--clear]           # triage JARVIS-captured failures (mistakes.jsonl)
    python3 lessons.py recall <question>                 # federated: logs + session RAG + workspace corpus
+   python3 lessons.py patterns                          # cluster entries into failure classes
+   python3 lessons.py stale                             # flag lessons whose paths churned since their date
+   python3 lessons.py graduate <title-substring>        # scaffold the guard for a lesson
    python3 lessons.py env                               # print an environment fingerprint for Env: lines
 
 Reads the project log (.claude/LESSONS.md, found by walking up from cwd) and the
@@ -455,6 +458,151 @@ def cmd_recall(terms):
     return 0
 
 
+# ---------- patterns / stale / graduate ----------
+
+PATTERNS = [
+    ("environment & tooling", "version environment environment installed missing module package "
+     "dependency not recognized path python node docker cli binary executable"),
+    ("config & schema placement", "config config schema key field table section placement root "
+     "level header format syntax toml yaml json metadata label vocabulary naming snake_case"),
+    ("wrong assumption about state", "assumed assumes assumed missing doesn't exist deleted renamed "
+     "moved outdated stale changed refactor expected"),
+    ("ordering, caching & timing", "order before after cache cached race async timeout retry wait "
+     "timing sequence stale refresh"),
+    ("destructive paths & data loss", "delete deletes wipe wiped rm remove overwrite destroyed wrong "
+     "path directory data loss dangerous destructive"),
+    ("network, auth & permissions", "auth token permission permission network connection ssh refused "
+     "denied credentials firewall proxy certificate"),
+]
+
+
+def _all_entries():
+    for scope, path in find_logs():
+        for e in parse_entries(path):
+            yield scope, e
+
+
+def cmd_patterns():
+    """Cluster entries by failure class — 'why does the same spot keep failing'."""
+    entries = list(_all_entries())
+    if not entries:
+        print("No lessons logs found.")
+        return 1
+    buckets = {name: [] for name, _ in PATTERNS}
+    unclassified = []
+    for scope, e in entries:
+        text = (e["title"] + " " + e["body"]).lower()
+        placed = False
+        for name, kws in PATTERNS:
+            score = sum(1 for kw in kws.split() if kw in text)
+            if score >= 2:
+                buckets[name].append(e)
+                placed = True
+                break
+        if not placed:
+            unclassified.append(e)
+    total = len(entries)
+    print(f"Failure patterns across {total} entr"
+          f"{'y' if total == 1 else 'ies'} ({len(find_logs())} log(s))\n")
+    if total < 10:
+        print(f"(thin data — {total}/10 entries; clusters sharpen as the logs grow)\n")
+    ranked = sorted(((n, es) for n, es in buckets.items() if es),
+                    key=lambda kv: -len(kv[1]))
+    if ranked:
+        top = ranked[0]
+        print(f"TOP FAILURE CLASS: {top[0]} ({len(top[1])} of {total}) — fix the class, not the instance\n")
+    for name, es in ranked:
+        print(f"[{len(es)}] {name}")
+        for e in es:
+            print(f"      - [{e['date']}] {e['title']}")
+    if unclassified:
+        print(f"\n[{len(unclassified)}] unclassified (no keyword class fit twice):")
+        for e in unclassified:
+            print(f"      - [{e['date']}] {e['title']}")
+    return 0
+
+
+def cmd_stale(threshold=10):
+    """Flag lessons whose Paths-globbed files churned heavily since their date."""
+    import datetime
+    if git(["rev-parse", "--show-toplevel"]) is None:
+        print("Not a git repository — stale detection needs history to measure churn against.")
+        return 1
+    today = datetime.date.today().isoformat()
+    flagged = checked = 0
+    for scope, e in _all_entries():
+        globs = [g.strip() for g in re.split(r"[,\s]+", field(e, "Paths")) if g.strip()]
+        if not globs or not re.match(r"^\d{4}-\d{2}-\d{2}$", e["date"].strip()):
+            continue
+        checked += 1
+        out = git(["log", "--since=" + e["date"].strip(), "--name-only", "--pretty=format:"])
+        changed = {l.strip() for l in (out or "").splitlines() if l.strip()}
+        churn = sum(1 for f in changed
+                    if any(fnmatch.fnmatch(f, g) or fnmatch.fnmatch(f, g.rstrip("/") + "/*")
+                           for g in globs))
+        mark = ""
+        if churn >= threshold:
+            mark = f"  << STALE? {churn} matching changes since {e['date']} — verify or prune"
+            flagged += 1
+        elif churn:
+            mark = f"  ({churn} matching changes since {e['date']})"
+        else:
+            mark = f"  (quiet since {e['date']})"
+        print(f"- [{scope}] [{e['date']}] {e['title']}{mark}")
+    print(f"\n{checked} dated entry(ies) with Paths checked against churn since {today[:4]}; "
+          f"{flagged} stale candidate(s) at >= {threshold} changes. "
+          "A lesson about code that no longer exists is folklore — verify or delete.")
+    return 0
+
+
+def cmd_graduate(term):
+    """Scaffold the actual guard for a lesson: hook JSON + validator + CI step."""
+    target = None
+    for scope, e in _all_entries():
+        if term.lower() in e["title"].lower():
+            if target is not None:
+                print(f"'{term}' matches more than one entry — be more specific.")
+                return 1
+            target = (scope, e)
+    if not target:
+        print(f"No entry matching '{term}'.")
+        return 1
+    scope, e = target
+    prevention = field(e, "Prevention") or "TODO: derive the check from the prevention rule"
+    print(f"Graduating: [{e['date']}] {e['title']}  ({scope} log)\n")
+    print("1 · Claude Code hooks (merge into settings.json; already wired if you use JARVIS):")
+    print(json.dumps({"hooks": {
+        "PreToolUse": [{"matcher": "Bash|PowerShell", "hooks": [
+            {"type": "command", "command": "python",
+             "args": ["<abs path>/learn-from-mistakes/scripts/jarvis_inbox.py"],
+             "timeout": 10, "statusMessage": "stark-memory shield"}]}],
+        "PostToolUseFailure": [{"matcher": "Bash|PowerShell", "hooks": [
+            {"type": "command", "command": "python",
+             "args": ["<abs path>/learn-from-mistakes/scripts/jarvis_inbox.py"],
+             "timeout": 10, "statusMessage": "JARVIS logging failure"}]}]}}, indent=2))
+    globs = [g.strip() for g in re.split(r"[,\s]+", field(e, "Paths")) if g.strip()]
+    watch = ", ".join(globs) or "**"
+    testname = re.sub(r"[^a-z0-9]+", "_", e["title"].lower()).strip("_")[:40]
+    print("\n2 · Validator stub — tests/test_" + testname + ".py:")
+    print(f'"""Guard graduated from lesson [{e["date"]}]: {e["title"]}"""')
+    print("import pathlib\n"
+          "\n"
+          f"# Prevention: {prevention}\n"
+          f"# Watched paths: {watch}\n"
+          "def test_guard():\n"
+          "    # TODO: assert the anti-pattern cannot recur.\n"
+          f"    # e.g. scan {watch} for whatever the prevention rule forbids,\n"
+          "    # and fail with this message when found:\n"
+          f'    raise AssertionError("GUARD NOT BUILT YET — prevention: {prevention[:80]}")\n')
+    print("3 · CI gate (GitHub Actions step):")
+    print(f"      - run: python -m pytest tests/test_{testname}.py\n"
+          "        name: guard — " + e["title"][:50])
+    import datetime
+    print("\nAfter wiring a guard, record it on the entry's **Automation:** line, e.g.:")
+    print(f"      - **Automation:** Level 2/3 — <what was built> (graduated {datetime.date.today().isoformat()})")
+    return 0
+
+
 def main():
     # never let a locale codepage break printing non-ASCII lessons or telemetry
     try:
@@ -478,6 +626,12 @@ def main():
         return cmd_save(a[1])
     if a and a[0] == "inbox":
         return cmd_inbox(all_projects="--all" in a, clear="--clear" in a)
+    if a == ["patterns"]:
+        return cmd_patterns()
+    if a == ["stale"]:
+        return cmd_stale()
+    if len(a) == 2 and a[0] == "graduate":
+        return cmd_graduate(a[1])
     if a == ["env"]:
         return cmd_env()
     print(__doc__.strip())

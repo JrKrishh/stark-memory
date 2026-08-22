@@ -195,6 +195,9 @@ the global log, not the repo.
   lesson's ROI counter) · `inbox [--all] [--clear]` (triage the JARVIS failure inbox) ·
   `recall <question>` (federated: logs + project session RAG + workspace corpora,
   each source labeled, graceful when absent) ·
+  `patterns` (cluster entries into failure classes — fix the class, not the instance) ·
+  `stale` (flag lessons whose Paths churned heavily in git since their date) ·
+  `graduate "<title>"` (scaffold the guard: hook JSON + validator stub + CI step) ·
   `stats` (hot-spots, automation candidates, top earners, pruning candidates) ·
   `env` (fingerprint for Env: lines). Run it instead of re-implementing log searches
   by hand.
