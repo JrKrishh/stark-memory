@@ -199,6 +199,21 @@ Recipes: [`references/automation-ladder.md`](skills/learn-from-mistakes/referenc
 
 ---
 
+## JARVIS HUD — watch the suit think
+
+A live dashboard in full Iron Man style: the arc-reactor core pulses with capture activity,
+ring gauges track shields / reflexes / saves, the event stream scrolls every interception,
+and the posture banner calls it like JARVIS would.
+
+```bash
+python ~/.claude/skills/learn-from-mistakes/scripts/hud.py --watch 5   # rebuilds every 5s
+# then open ~/.claude/stark-hud.html in a browser (it self-refreshes)
+```
+
+Everything is local and read-only — telemetry inbox plus lesson logs in, glowing HUD out.
+
+---
+
 ## Where everything lives
 
 | File | Scope | Commit it? |
@@ -226,7 +241,8 @@ skills/
     ├── SKILL.md                      # the skill itself
     ├── scripts/
     │   ├── lessons.py                # search · preflight · inbox · recall · patterns · stale · graduate
-    │   └── jarvis_inbox.py           # shield (PreToolUse) + capture & reflex (PostToolUseFailure)
+    │   ├── jarvis_inbox.py           # shield (PreToolUse) + capture & reflex (PostToolUseFailure)
+    │   └── hud.py                    # JARVIS-style live dashboard (--watch)
     └── references/
         ├── log-template.md           # initial LESSONS.md structure & categories
         ├── automation-ladder.md      # recipes for turning lessons into guards
