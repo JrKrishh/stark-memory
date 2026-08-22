@@ -20,7 +20,6 @@ Merge this group into the existing `"hooks"` object (don't replace other hooks):
             "type": "command",
             "command": "python",
             "args": ["~/.claude/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
-            "async": true,
             "timeout": 10,
             "statusMessage": "JARVIS logging failure"
           }
@@ -34,8 +33,31 @@ Merge this group into the existing `"hooks"` object (don't replace other hooks):
 - **Exec form** (`command` + `args`) spawns Python directly, no shell quoting issues.
   On Windows, `command` must resolve to a real `.exe` — `python` does. Replace `~`
   with the absolute path (`C:/Users/<you>/...`) since exec form does not expand it.
-- **`async: true`** logs in the background so the agentic loop never waits on it.
+- **Keep the hook synchronous** (no `"async": true`): decision-control output
+  (`additionalContext`, i.e. the reflex) only reaches Claude from a synchronous
+  handler. The script is bounded to stay fast — small log scans, no network,
+  no LLM calls in the hot path.
 - The matcher limits capture to shell tools; Edit/Write failures are left out on purpose.
+
+## Reflex — the suit corrects mid-fight
+
+On every failed shell command the receiver also scans both lesson logs. When at
+least **two distinct meaningful tokens** of the failed command appear in an
+entry's title/body, the best-matching lesson is injected into Claude's context:
+
+```
+stark-memory reflex — this failure matches logged lesson [2026-08-01] gizmo-deploy wipes ...
+Known fix: restored from origin; deployed with --no-purge
+Prevention rule: never run bare `gizmo deploy` - always pass --no-purge
+```
+
+- Strictness is deliberate: single-token overlaps stay silent. Expect matches on
+  the command shape rather than the exact failure mode — that is prevention
+  (warn before the destructive run succeeds), not diagnosis.
+- Every firing is recorded in the inbox as `{"reflex": true, "lesson": ..., "hits": N}`
+  telemetry. Triage reviews these: hits that helped bump the lesson's Saves
+  counter; noisy ones tell you to sharpen the entry's wording or add Paths globs.
+- No match → silent, exit 0. The hook never blocks longer than its scan.
 
 ## What gets recorded
 

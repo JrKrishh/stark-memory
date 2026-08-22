@@ -69,7 +69,6 @@ Merge into `~/.claude/settings.json`:
             "type": "command",
             "command": "python",
             "args": ["~/.claude/skills/learn-from-mistakes/scripts/jarvis_inbox.py"],
-            "async": true,
             "timeout": 10,
             "statusMessage": "JARVIS logging failure"
           }
@@ -81,6 +80,9 @@ Merge into `~/.claude/settings.json`:
 ```
 
 - Replace `~` with an absolute path (`C:/Users/<you>/...` on Windows).
+- Keep it synchronous (no `"async"`): the hook doesn't just record failures —
+  it **reflexes**. When a failed command matches a logged lesson, the known fix
+  is injected into Claude's context immediately, before debugging starts.
 - Full walkthrough incl. Windows specifics: [`references/jarvis-hook.md`](learn-from-mistakes/references/jarvis-hook.md).
 
 ### Step 3 — (Optional) Auto-load lessons at session start

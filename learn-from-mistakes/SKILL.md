@@ -53,8 +53,12 @@ automatically at the start of every session.
 
 ### 2. Recognize a recurring error
 
-When an error occurs, check the logs before debugging from scratch. On a match, apply
-the logged **Fix** immediately. Then update the entry: append today's date to its
+When an error occurs, check the logs before debugging from scratch. If the JARVIS
+hook is installed this happens automatically — on a match it injects the logged fix
+into context at the moment of failure (a "reflex"; firings are recorded in the inbox
+as `reflex: true` telemetry — bump `Saves` for the ones that helped, sharpen entries
+whose matches felt noisy). Otherwise, check the logs yourself. On a match, apply the
+logged **Fix** immediately. Then update the entry: append today's date to its
 **Recurred** line (add the line if missing) — and leave the heading's original date
 alone. The heading date records the first occurrence; **Recurred** records the
 history, and that trail is what triggers graduation. A recurrence is a signal, not
@@ -192,10 +196,12 @@ the global log, not the repo.
   `stats` (hot-spots, automation candidates, top earners, pruning candidates) ·
   `env` (fingerprint for Env: lines). Run it instead of re-implementing log searches
   by hand.
-- `scripts/jarvis_inbox.py` — JARVIS telemetry: a PostToolUseFailure hook receiver
-  that appends every failed shell command to `~/.claude/mistakes.jsonl` as it happens,
-  so capture never depends on remembering to debrief. Install once per machine via
-  `references/jarvis-hook.md`; triage with `lessons.py inbox`.
+- `scripts/jarvis_inbox.py` — JARVIS telemetry + reflex: a synchronous
+  PostToolUseFailure hook that appends every failed shell command to
+  `~/.claude/mistakes.jsonl` as it happens (capture never depends on memory) and,
+  when the failure matches a logged lesson, injects the known fix into context
+  immediately. Install once per machine via `references/jarvis-hook.md`; triage
+  with `lessons.py inbox`.
 - `references/automation-ladder.md` — recipes for graduating lessons into guards.
 - `references/session-start-hook.md` — auto-load the logs into every session.
 - `references/log-template.md` — initial log structure and categories.

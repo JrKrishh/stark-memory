@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """JARVIS inbox — PostToolUseFailure hook for learn-from-mistakes.
 
-Claude Code fires this on every failed tool call. We append shell failures
-(Bash/PowerShell) to ~/.claude/mistakes.jsonl as one JSON line per event:
+Two duties, one fast synchronous call:
 
-    {"ts": ..., "project": cwd, "session": id, "tool": "Bash",
-     "cmd": "...", "exit_code": N, "error": "first 500 chars"}
+1. CAPTURE — append shell failures (Bash/PowerShell) to ~/.claude/mistakes.jsonl:
+       {"ts": ..., "project": cwd, "session": id, "tool": "Bash",
+        "cmd": "...", "exit_code": N, "error": "first 500 chars"}
+   The debrief triages this inbox into LESSONS.md (`lessons.py inbox`).
 
-The debrief then triages this inbox into LESSONS.md entries
-(`lessons.py inbox`) instead of relying on memory.
+2. REFLEX — scan the lesson logs for a match to this exact failure; on a strong
+   one, emit hookSpecificOutput.additionalContext so Claude sees the logged fix
+   immediately instead of debugging from scratch. Strictness rules keep false
+   positives near zero: at least two distinct command tokens must appear in the
+   entry text, only the best entry fires, output is capped. Every firing is
+   recorded as {"reflex": true, "lesson": ...} telemetry for tuning.
 
 Contract notes (hooks reference): the failure detail is a single freeform
 `error` string whose first line is conventionally "Exit code N" with stdout+
@@ -16,8 +21,7 @@ stderr interleaved below; there is no structured stderr/exit_code field.
 Interrupted calls (user pressed Esc) are not mistakes and are skipped.
 
 This script must never disturb the session: it swallows every error and
-always exits 0, silently. The inbox stays local; never commit it (it may
-contain command output).
+always exits 0. The inbox stays local; never commit it.
 """
 import json
 import os
@@ -33,6 +37,9 @@ TAIL = 500        # chars of the error string kept per entry
 DEDUP_SECS = 120  # same failure signature within this window -> skip
 
 EXIT_RE = re.compile(r"^Exit code (\d+)")
+STOPWORDS = {"powershell", "bash", "pwsh", "python", "python3", "node",
+             "npm", "npx", "git", "echo", "sudo", "cmd", "exit", "code"}
+MIN_HITS = 2      # distinct command tokens that must appear in an entry to fire
 
 
 def signature(entry):
@@ -64,36 +71,24 @@ def _acquire_lock(deadline_s=5.0):
             time.sleep(0.02)
 
 
-def capture(payload):
-    if payload.get("is_interrupt"):
-        return  # user aborted; not a mistake
-    cmd = (payload.get("tool_input") or {}).get("command") or ""
-    if not cmd:
-        return  # non-shell failure or no command to learn from
-    err = str(payload.get("error") or "")
-    m = EXIT_RE.match(err)
-    entry = {
-        "ts": int(time.time()),
-        "project": payload.get("cwd") or os.getcwd(),
-        "session": payload.get("session_id") or "",
-        "cmd": cmd[:300],
-        "exit_code": int(m.group(1)) if m else None,
-        "error": err[:TAIL],
-    }
+def _store(entry, dedup=True):
+    """Append one event line under the lock; trim when over cap.
+    Returns False if a same-signature entry was recorded recently."""
     INBOX.parent.mkdir(parents=True, exist_ok=True)
     have_lock = _acquire_lock()
     try:
         lines = INBOX.read_text(encoding="utf-8").splitlines() if INBOX.exists() else []
-        sig = signature(entry)
-        for line in reversed(lines):
-            try:
-                prev = json.loads(line)
-            except ValueError:
-                continue
-            if signature(prev) == sig:
-                if abs(entry["ts"] - prev.get("ts", 0)) < DEDUP_SECS:
-                    return  # retry loop of the same failure; one record is enough
-                break
+        if dedup:
+            sig = signature(entry)
+            for line in reversed(lines):
+                try:
+                    prev = json.loads(line)
+                except ValueError:
+                    continue
+                if signature(prev) == sig:
+                    if abs(entry["ts"] - prev.get("ts", 0)) < DEDUP_SECS:
+                        return False  # retry loop of the same failure
+                    break
         keep = None
         if len(lines) + 1 >= MAX_LINES:
             keep = (lines[-(KEEP_LINES - 1):] + [json.dumps(entry, ensure_ascii=False)])
@@ -105,8 +100,9 @@ def capture(payload):
         else:                 # normal path: plain append under the lock
             with open(INBOX, "a", encoding="utf-8", newline="\n") as f:
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        return True
     except OSError:
-        pass
+        return True
     finally:
         if have_lock:
             try:
@@ -115,14 +111,85 @@ def capture(payload):
                 pass
 
 
+def capture(payload):
+    """Store the failure. Returns (cmd, err) for the reflex stage."""
+    if payload.get("is_interrupt"):
+        return None, ""  # user aborted; not a mistake
+    cmd = (payload.get("tool_input") or {}).get("command") or ""
+    if not cmd:
+        return None, ""  # non-shell failure or no command to learn from
+    err = str(payload.get("error") or "")
+    m = EXIT_RE.match(err)
+    _store({
+        "ts": int(time.time()),
+        "project": payload.get("cwd") or os.getcwd(),
+        "session": payload.get("session_id") or "",
+        "cmd": cmd[:300],
+        "exit_code": int(m.group(1)) if m else None,
+        "error": err[:TAIL],
+    })
+    return cmd, err
+
+
+def reflex(cmd, project_dir):
+    """Match this failure against the lesson logs; return injection text or None.
+
+    Strict on purpose: >=MIN_HITS distinct meaningful tokens from the command
+    must appear in an entry's title+body. One winner, capped output."""
+    try:
+        import lessons as L  # sibling module in scripts/
+    except Exception:
+        return None
+    try:
+        toks = {t.lower() for t in re.split(r"[^a-zA-Z0-9_]+", cmd)
+                if len(t) >= 4 and t.lower() not in STOPWORDS}
+        if not toks:
+            return None
+        best, best_hits = None, 0
+        for scope, path in L.find_logs():
+            for e in L.parse_entries(path):
+                text = (e["title"] + " " + e["body"]).lower()
+                hits = sum(1 for t in toks if t in text)
+                if hits > best_hits:
+                    best, best_hits = e, hits
+        if not best or best_hits < MIN_HITS:
+            return None
+        parts = [f"stark-memory reflex — this failure matches logged lesson [{best['date']}] {best['title']}"]
+        prevention = L.field(best, "Prevention")
+        fix = L.field(best, "Fix")
+        if fix:
+            parts.append(f"Known fix: {fix[:300]}")
+        if prevention:
+            parts.append(f"Prevention rule: {prevention[:300]}")
+        _store({"ts": int(time.time()), "project": project_dir,
+                "reflex": True, "lesson": best["title"], "hits": best_hits}, dedup=False)
+        return "\n".join(parts)[:800]
+    except Exception:
+        return None
+
+
 def main():
     try:
         # Claude Code sends UTF-8 JSON; decode explicitly so locale codepages
         # (cp1252 etc.) can't mojibake non-ASCII output before we ever see it.
         data = sys.stdin.buffer.read().decode("utf-8", "replace")
-        capture(json.loads(data or "{}"))
+        payload = json.loads(data or "{}")
+        cwd = payload.get("cwd")
+        if cwd and os.path.isdir(cwd):
+            try:
+                os.chdir(cwd)  # lesson logs resolve relative to the session project
+            except OSError:
+                pass
+        cmd, _err = capture(payload)
+        msg = reflex(cmd, cwd) if cmd else None
+        if msg:
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PostToolUseFailure",
+                "additionalContext": msg}}))
     except Exception:
-        pass
+        if os.environ.get("JARVIS_DEBUG"):
+            import traceback
+            traceback.print_exc(file=sys.stderr)
     return 0
 
 
