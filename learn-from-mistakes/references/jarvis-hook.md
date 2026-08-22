@@ -41,9 +41,12 @@ Merge this group into the existing `"hooks"` object (don't replace other hooks):
 
 One JSON line per failure: timestamp, project cwd, session id, command, exit code
 (parsed from the `Exit code N` first line of the error string), and the first 500
-characters of output. Interrupted calls (Esc), non-shell tools, and retries of the
-same failing command within 2 minutes are skipped. The file self-trims past 400 lines.
-Override its location with the `JARVIS_INBOX` env var (useful for tests).
+characters of output. Interrupted calls (Esc) and non-shell tools are skipped.
+Retries of the *same failure* within 2 minutes are deduplicated (signature:
+project + command + exit code + first output line); a retry that fails differently
+is kept as a distinct signal. The file self-trims past 400 lines; concurrent
+sessions append atomically. Override its location with the `JARVIS_INBOX` env var
+(useful for tests).
 
 ## Notes
 
