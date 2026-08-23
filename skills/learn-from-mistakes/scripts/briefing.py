@@ -59,7 +59,14 @@ def main():
         else:
             mline = f"none qualified ({min_calls}+ commands needed)"
 
+        mp = L._manifest_path(os.getcwd())
+        mission = ""
+        if mp:
+            m = L._manifest_read(mp) or {}
+            mission = f"  mission: {m.get('title', '')}\n" if m.get("title") else ""
+
         print("=== JARVIS BRIEFING · last 24h ===")
+        print(mission, end="")
         print(f"  threats intercepted: {shields}   failures captured: {captures}   reflexes: {reflexes}")
         print(f"  lessons: {len(lessons)} on file · {new_today} touched today · {saves} lifetime saves")
         print(f"  top failure zone: {top_zone} ({top_n})   top model: {mline}")

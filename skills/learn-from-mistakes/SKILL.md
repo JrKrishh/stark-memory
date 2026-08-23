@@ -33,7 +33,11 @@ is something worth writing — don't create empty logs preemptively.
 
 At the start of any non-trivial task — and before a failure-prone category of action
 (builds, deploys, migrations, destructive commands, tricky APIs) — read both logs if
-they exist. `scripts/lessons.py search <keywords>` finds matching entries across both
+they exist. If the project has a `.claude/stark-project.md` manifest, its Purpose,
+Workflow and Failure shapes are injected at session start (with the logs, via
+`scripts/session_consult.py`): honor them as the project's standing orders, and
+scaffold one with `scripts/lessons.py project-init` if missing.
+`scripts/lessons.py search <keywords>` finds matching entries across both
 in one step, and `scripts/lessons.py preflight` matches the files you're about to
 touch (or the current git diff) against entries' **Paths** globs — run it before
 editing code in an area you don't fully know. If an entry's **Trigger** matches what

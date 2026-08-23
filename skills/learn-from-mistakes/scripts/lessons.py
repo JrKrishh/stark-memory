@@ -14,6 +14,7 @@ Usage:
    python3 lessons.py stale                             # flag lessons whose paths churned since their date
    python3 lessons.py graduate <title-substring>        # scaffold the guard for a lesson
    python3 lessons.py project                            # dossier: stack, git, recent prompts
+   python3 lessons.py project-init                       # scaffold .claude/stark-project.md manifest
    python3 lessons.py models                             # which model fails least per session
    python3 lessons.py copilot --suggest --prompt "<p>"   # Claude-Code-powered prompt improver
    python3 lessons.py env                               # print an environment fingerprint for Env: lines
@@ -749,11 +750,17 @@ def cmd_copilot(args):
         print("usage: lessons.py copilot --suggest --prompt \"<the prompt>\" [--json]")
         return 2
     d = _project_digest(os.getcwd())
+    manifest = _manifest_read(_manifest_path(os.getcwd())) if _manifest_path(os.getcwd()) else None
+    mline = ""
+    if manifest and (manifest["title"] or manifest["purpose"]):
+        mline = (f"Project mission: {manifest['title']}. {manifest['purpose'][:400]}\n"
+                 f"{manifest['sections'].get('Workflow', '')[:400]}")
     context = (
         f"Project: {os.path.basename(os.getcwd())}\n"
         f"Stack: {', '.join(d['stack'])}\n"
         f"Files: {d['files']}\n"
         f"Last commit: {d['last_commit'] or '-'}\n"
+        + mline +
         f"Recent user prompts:\n" + "\n".join(f"- {p}" for p in d["prompts"][:6]) +
         "\n\n"
         f"The user just typed this prompt into Claude Code in THIS project:\n"
@@ -896,6 +903,76 @@ def cmd_models():
     return 0
 
 
+# ---------- project manifest ----------
+
+def _manifest_path(project_dir):
+    d = project_dir
+    while True:
+        p = os.path.join(d, ".claude", "stark-project.md")
+        if os.path.isfile(p):
+            return p
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+def _manifest_read(path):
+    """Parse the manifest into {title, purpose, sections: [(h, text)...]}."""
+    try:
+        lines = open(path, encoding="utf-8").read().splitlines()
+    except OSError:
+        return None
+    title, purpose, sections = "", "", []
+    cur = None
+    for l in lines:
+        if l.startswith("# "):
+            title = l[2:].strip()
+        elif l.startswith("## "):
+            cur = [l[3:].strip(), ""]
+            sections.append(cur)
+        elif cur is not None:
+            cur[1] += l + "\n"
+        elif l.strip() and not purpose and not l.startswith("#"):
+            purpose = l.strip()
+    body = {h: t.strip() for h, t in sections}
+    return {"title": title, "purpose": purpose or body.get("Purpose", ""),
+            "sections": body}
+
+
+def cmd_project_init():
+    """Scaffold .claude/stark-project.md for this project."""
+    target = os.path.join(os.getcwd(), ".claude", "stark-project.md")
+    if os.path.isfile(target):
+        print(f"manifest already exists: {target} — edit it directly.")
+        return 1
+    d = _project_digest(os.getcwd())
+    stack = ", ".join(d["stack"])
+    template = f"""# {os.path.basename(os.getcwd())} — <one-line purpose>
+
+## Purpose
+<Two or three sentences: what this project is FOR and what success looks like.
+Sessions read this to understand the mission before doing anything.>
+
+## Structure
+- <dir or file> — <what it is>
+- (detected: {d['files']} files, stack {stack or 'unknown'})
+
+## Workflow
+- <the commands and order of operations that define good work here>
+
+## Failure shapes
+- <what mistakes look like in this project — the scar patterns to avoid>
+"""
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    with open(target, "w", encoding="utf-8") as f:
+        f.write(template)
+    print(f"scaffolded {target} — fill in Purpose/Structure/Workflow/Failure shapes.")
+    print("It is injected into every session in this project at start, read by")
+    print("the briefing, and used as copilot context.")
+    return 0
+
+
 def main():
     # never let a locale codepage break printing non-ASCII lessons or telemetry
     try:
@@ -917,6 +994,8 @@ def main():
         return cmd_bootstrap(apply="--apply" in a, limit=limit)
     if a == ["project"]:
         return cmd_project()
+    if a == ["project-init"]:
+        return cmd_project_init()
     if a == ["models"]:
         return cmd_models()
     if a and a[0] == "copilot":

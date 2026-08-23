@@ -211,6 +211,19 @@ stark-memory reports *to you* instead of waiting to be watched:
 - **CLI deep-dives** — `lessons.py stats | models | inbox` whenever you want the
   full ledger.
 
+## Per-project manifests — the skill learns each project's mission
+
+One file teaches every session what a project IS: `.claude/stark-project.md`
+(Purpose, Structure, Workflow, Failure shapes). It is injected at session start
+via walk-up — so even sessions nested deep inside a monorepo see the workspace's
+manifest and lessons — the briefing opens with the mission line, and the prompt
+copilot uses it as context when improving requests.
+
+```bash
+python skills/learn-from-mistakes/scripts/lessons.py project-init   # scaffold in cwd
+# then fill in the four sections; everything else is automatic
+```
+
 ---
 
 ## Where everything lives

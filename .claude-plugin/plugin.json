@@ -1,7 +1,7 @@
 {
   "name": "stark-memory",
   "description": "Self-improving memory for Claude Code: lessons logs, JARVIS failure telemetry, reflex fix-injection, and a shield that gates high-severity commands before they run",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "author": {
     "name": "Boopathi Raja"
   },
@@ -37,8 +37,7 @@
             "type": "command",
             "command": "python",
             "args": [
-              "-c",
-              "import pathlib\nfor f in [pathlib.Path.cwd()/'.claude'/'LESSONS.md', pathlib.Path.home()/'.claude'/'LESSONS.md']:\n    if f.is_file():\n        print('=== Lessons log: '+str(f)+' ===')\n        print(f.read_text(encoding='utf-8', errors='replace')[:4000])"
+              "${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/session_consult.py"
             ],
             "timeout": 10,
             "statusMessage": "stark-memory lessons"
