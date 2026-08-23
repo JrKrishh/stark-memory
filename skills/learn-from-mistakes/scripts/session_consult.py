@@ -23,6 +23,8 @@ def find_up(name):
 
 
 def emit(label, path):
+    if path is None:
+        return
     try:
         text = path.read_text(encoding="utf-8", errors="replace")[:4000]
     except OSError:
@@ -32,6 +34,12 @@ def emit(label, path):
 
 
 def main():
+    # UTF-8 out, whatever the locale codepage — a lesson log with non-ASCII
+    # content must not raise on a cp1252 console and silently skip injection
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     try:
         emit("Lessons log", find_up("LESSONS.md"))
         emit("Project manifest", find_up("stark-project.md"))
