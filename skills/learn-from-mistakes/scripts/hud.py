@@ -194,7 +194,7 @@ def fmt_age(ts):
 
 
 # ---------------- render ----------------
-def render():
+def build():
     events = load_events()
     lessons = load_lessons()
     transcripts = load_transcripts()
@@ -307,24 +307,85 @@ def render():
   <div class="drow"><span>LESSONS</span><b>{len(lessons)} in range</b></div>
 </div>"""
 
+    return {
+        "refresh": REFRESH, "posture": posture, "pcolor": pcolor, "sub": sub,
+        "core": caps, "rs": rs, "rr": rr, "rv": rv, "n_sh": n_sh, "n_rf": n_rf,
+        "n_sv": saves, "n_le": len(lessons),
+        "stamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "proj_cards": "".join(proj_cards), "sess_cards": "".join(sess_cards),
+        "ev_rows": ev_rows or "<tr><td colspan=4 class='dim'>no events yet</td></tr>",
+        "les_rows": les_rows or "<tr><td colspan=5 class='dim'>empty</td></tr>",
+        "diag": diag, "sug_rows": sug_rows, "prom_rows": prom_rows,
+        "doss_cards": doss_cards, "ts": int(time.time())}
+
+
+def page():
     tpl = Template((HERE / "hud_template.html").read_text(encoding="utf-8"))
-    return tpl.substitute(
-        refresh=REFRESH, posture=posture, pcolor=pcolor, sub=sub,
-        core=caps, rs=rs, rr=rr, rv=rv, n_sh=n_sh, n_rf=n_rf, n_sv=saves,
-        n_le=len(lessons), stamp=time.strftime("%Y-%m-%d %H:%M:%S"),
-        proj_cards="".join(proj_cards), sess_cards="".join(sess_cards),
-        ev_rows=ev_rows or "<tr><td colspan=4 class='dim'>no events yet</td></tr>",
-        les_rows=les_rows or "<tr><td colspan=5 class='dim'>empty</td></tr>",
-        diag=diag, sug_rows=sug_rows, prom_rows=prom_rows, doss_cards=doss_cards)
+    return tpl.substitute(build())
+
+
+# ---------------- local per-user artifact server ----------------
+IDLE_MIN = float(os.environ.get("STARK_HUD_IDLE", "30"))
+
+
+def serve(port):
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    state = {"last_req": time.time()}
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            state["last_req"] = time.time()
+            try:
+                if self.path.startswith("/api/data"):
+                    body = json.dumps(build()).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                elif self.path == "/api/health":
+                    body = b'{"ok":true}'
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                elif self.path in ("/", "/index.html"):
+                    body = page().encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                else:
+                    body = b"not found"
+                    self.send_response(404)
+                    self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, *a):
+            pass
+
+    def watchdog():
+        interval = min(60.0, IDLE_MIN * 30.0)  # first check at half the idle window
+        while True:
+            time.sleep(interval)
+            if time.time() - state["last_req"] > IDLE_MIN * 60:
+                os._exit(0)  # nobody is watching; free the port
+
+    threading.Thread(target=watchdog, daemon=True).start()
+    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+    print(f"stark-hud serving http://127.0.0.1:{port} (idle exit after {int(IDLE_MIN)} min)", flush=True)
+    srv.serve_forever()
 
 
 def main():
     args = sys.argv[1:]
+    if "--serve" in args:
+        port = int(args[args.index("--port") + 1]) if "--port" in args and len(args) > args.index("--port") + 1 else 8799
+        return serve(port)
     watch = "--watch" in args
     secs = float(args[args.index("--watch") + 1]) if watch and len(args) > args.index("--watch") + 1 else REFRESH
     while True:
         try:
-            OUT.write_text(render(), encoding="utf-8")
+            OUT.write_text(page(), encoding="utf-8")
             print(f"[{time.strftime('%H:%M:%S')}] rendered {OUT}", flush=True)
         except Exception as ex:
             print(f"render error: {ex}", flush=True)

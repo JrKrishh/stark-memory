@@ -1,7 +1,7 @@
 {
   "name": "stark-memory",
   "description": "Self-improving memory for Claude Code: lessons logs, JARVIS failure telemetry, reflex fix-injection, and a shield that gates high-severity commands before they run",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": {
     "name": "Boopathi Raja"
   },
@@ -42,6 +42,15 @@
             ],
             "timeout": 10,
             "statusMessage": "stark-memory lessons"
+          },
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/learn-from-mistakes/scripts/hud_guard.py"
+            ],
+            "timeout": 15,
+            "statusMessage": "stark-memory HUD"
           }
         ]
       }

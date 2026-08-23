@@ -199,18 +199,30 @@ Recipes: [`references/automation-ladder.md`](skills/learn-from-mistakes/referenc
 
 ---
 
-## JARVIS HUD — watch the suit think
+## JARVIS HUD — your own private artifact, always on
 
-A live dashboard in full Iron Man style: the arc-reactor core pulses with capture activity,
-ring gauges track shields / reflexes / saves, the event stream scrolls every interception,
-and the posture banner calls it like JARVIS would.
+Every install gets a **per-user HUD artifact**: a local web app served on a port
+derived from your username, auto-started by every Claude Code session, live-updating
+in place (no reloads), and self-cleaning when you stop watching.
+
+- **URL**: `http://127.0.0.1:<your-port>` — port = 8787 + hash(username) % 200.
+  Find it in your session output ("stark-hud artifact up at …"), or run
+  `python skills/learn-from-mistakes/scripts/hud_guard.py` manually.
+- **Zero setup**: the plugin's SessionStart hook launches it if it's down, so it's
+  alive whenever you work and frees itself after ~30 idle minutes.
+- Two users on one machine get two independent artifacts (own port, own telemetry,
+  own lessons, own copilot cache).
+
+The deck: reactor core + shield/reflex/save gauges, live event stream, session
+intel with expandable command logs, project directory, project dossier, prompt
+copilot with improved-request suggestions, lesson ledger, diagnostics.
 
 ```bash
-python ~/.claude/skills/learn-from-mistakes/scripts/hud.py --watch 5   # rebuilds every 5s
-# then open ~/.claude/stark-hud.html in a browser (it self-refreshes)
+# manual controls
+python skills/learn-from-mistakes/scripts/hud.py --serve --port 8799   # foreground server
+python skills/learn-from-mistakes/scripts/hud.py                        # one-shot HTML file
+python skills/learn-from-mistakes/scripts/hud_guard.py                  # ensure-it-is-up
 ```
-
-Everything is local and read-only — telemetry inbox plus lesson logs in, glowing HUD out.
 
 ---
 

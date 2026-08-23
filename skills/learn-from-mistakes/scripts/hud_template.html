@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="$refresh">
 <title>stark-memory // J.A.R.V.I.S.</title>
 <style>
 :root{--cy:#7de8ff;--gd:#ffd166;--rd:#ff6b5e;--gn:#9fe8b4;--dim:#4a6a86;--line:#16344e;--bg:#04080f}
@@ -96,16 +95,16 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
 
 <div class="topbar">
   <div class="brand">STARK-MEMORY <span style="color:var(--rd)">//</span> J.A.R.V.I.S.<small>JUST A RATHER VERY INTELLIGENT MEMORY SYSTEM</small></div>
-  <div class="posture"><b style="color:$pcolor">$posture</b><br><span>$sub</span></div>
+  <div class="posture"><b style="color:$pcolor" id="posture">$posture</b><br><span id="sub">$sub</span></div>
 </div>
 
 <div class="deck">
 
 <!-- LEFT: projects + diagnostics -->
 <div>
-  <div class="panel"><h2>PROJECT DIRECTORY</h2>$proj_cards</div>
-  <div class="panel"><h2>PROJECT DOSSIER — CURRENT BASE</h2>$doss_cards</div>
-  <div class="panel"><h2>SYSTEM DIAGNOSTICS</h2>$diag</div>
+  <div class="panel"><h2>PROJECT DIRECTORY</h2><div id="proj_cards">$proj_cards</div></div>
+  <div class="panel"><h2>PROJECT DOSSIER — CURRENT BASE</h2><div id="doss_cards">$doss_cards</div></div>
+  <div class="panel"><h2>SYSTEM DIAGNOSTICS</h2><div id="diag">$diag</div></div>
 </div>
 
 <!-- CENTER: reactor + sessions -->
@@ -119,28 +118,28 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
         <g class="ring"><circle cx="133" cy="133" r="112" fill="none" stroke="#2a4d70"
           stroke-width="8" stroke-dasharray="28 15" stroke-linecap="round"/></g>
         <circle cx="133" cy="133" r="96" fill="none" stroke="#ff6b5e" stroke-width="24"
-          stroke-dasharray="$rs 400" transform="rotate(-90 133 133)"/>
+          stroke-dasharray="$rs 400" transform="rotate(-90 133 133)" id="ring_s"/>
         <g class="ring rev"><circle cx="133" cy="133" r="81" fill="none" stroke="#2a4d70"
           stroke-width="6" stroke-dasharray="16 11"/></g>
         <circle cx="133" cy="133" r="81" fill="none" stroke="#ffd166" stroke-width="6"
-          stroke-dasharray="$rr 400" transform="rotate(-90 133 133)"/>
+          stroke-dasharray="$rr 400" transform="rotate(-90 133 133)" id="ring_r"/>
         <circle cx="133" cy="133" r="65" fill="none" stroke="#9fe8b4" stroke-width="9"
-          stroke-dasharray="$rv 400" transform="rotate(-90 133 133)"/>
+          stroke-dasharray="$rv 400" transform="rotate(-90 133 133)" id="ring_v"/>
         <g class="core">
           <circle cx="133" cy="133" r="48" fill="#0a1c2c" stroke="#2a4d70"/>
           <circle cx="133" cy="133" r="42" fill="none" stroke="#7de8ff" stroke-width="2" opacity=".55"/>
-          <text class="corenum" x="133" y="143" text-anchor="middle">$core</text>
+          <text class="corenum" x="133" y="143" text-anchor="middle" id="core">$core</text>
           <text class="rlabel" x="133" y="161" text-anchor="middle">CAPTURES</text>
         </g>
-        <text class="rlabel" x="133" y="27" text-anchor="middle">SHIELD $n_sh</text>
-        <text class="rlabel" x="252" y="137" text-anchor="end">REFLEX $n_rf</text>
-        <text class="rlabel" x="133" y="250" text-anchor="middle">SAVES $n_sv</text>
+        <text class="rlabel" x="133" y="27" text-anchor="middle" id="n_sh">SHIELD $n_sh</text>
+        <text class="rlabel" x="252" y="137" text-anchor="end" id="n_rf">REFLEX $n_rf</text>
+        <text class="rlabel" x="133" y="250" text-anchor="middle" id="n_sv">SAVES $n_sv</text>
       </svg>
     </div>
   </div>
 
   <div class="panel"><h2>SESSION INTEL — CLICK TO EXPAND ($n_le lessons on file)</h2>
-  $sess_cards
+  <div id="sess_cards">$sess_cards</div>
   </div>
 </div>
 
@@ -148,21 +147,40 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
 <div>
   <div class="panel"><h2>LIVE EVENT STREAM</h2>
     <table><tr><td class="rlabel">TIME</td><td class="rlabel">CLASS</td><td class="rlabel">COMMAND / LESSON</td><td class="rlabel">PROJECT</td></tr>
-    $ev_rows</table>
+    <tbody id="ev_rows">$ev_rows</tbody></table>
   </div>
   <div class="panel"><h2>LESSON LEDGER ($n_le)</h2>
     <table><tr><td class="rlabel">SEV</td><td class="rlabel">TITLE</td><td class="rlabel">LOG</td><td class="rlabel">SV</td><td class="rlabel">STATE</td></tr>
-    $les_rows</table>
+    <tbody id="les_rows">$les_rows</tbody></table>
   </div>
   <div class="panel copilot"><h2>PROMPT COPILOT — IMPROVED REQUESTS</h2>
-    $sug_rows
+    <div id="sug_rows">$sug_rows</div>
     <h2 style="margin-top:10px">RECENT USER PROMPTS</h2>
-    $prom_rows
+    <div id="prom_rows">$prom_rows</div>
   </div>
 </div>
 
 </div>
 
-<footer>GENERATED $stamp · REFRESH ${refresh}s · ALL TELEMETRY LOCAL · STAY FLYABLE</footer>
+<footer>GENERATED <span id="stamp">$stamp</span> · LIVE <span id="refr">$refresh</span>s · ALL TELEMETRY LOCAL · STAY FLYABLE</footer>
+
+<script>
+const FIELDS = {posture:'text', sub:'text', core:'text', n_sh:'text', n_rf:'text', n_sv:'text', stamp:'text'};
+const BLOCKS = ['proj_cards','doss_cards','diag','sess_cards','ev_rows','les_rows','sug_rows','prom_rows'];
+const RINGS = {rs:'ring_s', rr:'ring_r', rv:'ring_v'};
+async function poll(){
+  try{
+    const d = await (await fetch('/api/data')).json();
+    for(const k of Object.keys(FIELDS)){const el=document.getElementById(k); if(el) el.textContent=d[k];}
+    for(const k of BLOCKS){const el=document.getElementById(k); if(el&&d[k]!==undefined) el.innerHTML=d[k];}
+    for(const k of Object.keys(RINGS)){
+      const el=document.getElementById(RINGS[k]); if(el) el.setAttribute('stroke-dasharray', d[k]+' 400');
+    }
+    const p=document.getElementById('posture');
+    if(p) p.style.color=d.pcolor;
+  }catch(e){}
+}
+setInterval(poll, 5000);
+</script>
 </body>
 </html>
