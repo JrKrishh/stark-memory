@@ -117,13 +117,14 @@ def test_session_consult_injects_global_log_without_project_log(hook_env):
     # Regression for the cold-start bug: global lessons must appear even when
     # the project has no .claude/LESSONS.md of its own.
     (hook_env["home"] / ".claude" / "LESSONS.md").write_text(
-        "## Cat\n\n### [2026-01-01] global lesson exists\n- **Severity:** low\n",
+        "## Cat\n\n### [2026-01-01] global lesson café exists\n- **Severity:** low\n",
         encoding="utf-8")
     p = run_hook("session_consult.py", b"", hook_env)
     assert p.returncode == 0
+    # strict decode: hooks must emit UTF-8 regardless of the locale codepage
     out = p.stdout.decode("utf-8")
     assert "Global lessons" in out
-    assert "global lesson exists" in out
+    assert "global lesson café exists" in out
 
 
 def test_briefing_runs_on_empty_state(hook_env):

@@ -31,6 +31,11 @@ def load_events():
 
 
 def main():
+    # UTF-8 out, whatever the locale codepage — same policy as lessons.py
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     try:
         events = load_events()
         day = [e for e in events if time.time() - e.get("ts", 0) < 86400]

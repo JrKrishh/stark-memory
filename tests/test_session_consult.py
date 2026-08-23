@@ -59,7 +59,9 @@ def test_each_source_capped_at_4000_chars(project, capsys):
     write_lessons(project / ".claude" / "LESSONS.md", "x" * 10000)
     sc.main()
     out = capsys.readouterr().out
-    assert out.count("x") == 4000
+    # skip the "=== label: path ===" header — the tmp path itself may contain 'x'
+    body = out.split("===", 2)[2]
+    assert body.count("x") == 4000
 
 
 def test_nothing_anywhere_is_quiet_success(fake_home, tmp_path, monkeypatch, capsys):
