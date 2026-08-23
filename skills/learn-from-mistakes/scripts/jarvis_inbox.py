@@ -213,6 +213,22 @@ def _paths_in_scope(globs):
     return False
 
 
+def _toast(title, msg):
+    """Fire-and-forget OS toast on critical events (Windows only). Never blocks
+    the hook: detached spawn, no wait, all failures swallowed."""
+    if os.name != "nt" or os.environ.get("STARK_TOAST") == "0":
+        return
+    try:
+        import subprocess
+        script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "toast.ps1")
+        subprocess.Popen(
+            ["powershell", "-NoProfile", "-WindowStyle", "Hidden",
+             "-ExecutionPolicy", "Bypass", "-File", script, title, msg[:220]],
+            creationflags=0x00000008)  # DETACHED_PROCESS
+    except Exception:
+        pass
+
+
 def shield(cmd, project_dir):
     """Pre-execution guard over Severity:high lessons. Returns ask-reason or None.
 
@@ -238,6 +254,7 @@ def shield(cmd, project_dir):
                   f"Confirm only if this is intentional.")
         _store({"ts": int(time.time()), "project": project_dir,
                 "shield": True, "lesson": best["title"], "hits": hits}, dedup=False)
+        _toast("stark-memory shield", f"blocked: {cmd[:80]}\n{best['title']}")
         return reason[:600]
     except Exception:
         return None
