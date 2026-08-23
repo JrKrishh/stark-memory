@@ -229,12 +229,17 @@ def _toast(title, msg):
         pass
 
 
-def shield(cmd, project_dir):
-    """Pre-execution guard over Severity:high lessons. Returns ask-reason or None.
+AUTO_MODES = {"auto", "dontAsk", "bypassPermissions"}
 
-    The reflex helps you recover; the shield exists so the destructive command
-    never runs at all. 'ask' (never 'deny') keeps a fuzzy text match from ever
-    hard-blocking legitimate work — the human decides with the lesson in view."""
+
+def shield(cmd, project_dir, mode="default"):
+    """Pre-execution guard over Severity:high lessons. Returns decision text or None.
+
+    Interactive modes -> 'ask' (human confirms with the lesson in view).
+    Auto modes (auto/dontAsk/bypassPermissions) -> 'deny' automatically: there is
+    no human to confirm, so the suit refuses and hands Claude the prevention rule
+    to reroute with — autonomous AND safe. STARK_SHIELD_AUTO=allow stands the
+    guard down in auto modes (still logged + toasted)."""
     try:
         import lessons as L
     except Exception:
@@ -248,14 +253,33 @@ def shield(cmd, project_dir):
         globs = [g.strip() for g in re.split(r"[,\s]+", L.field(best, "Paths")) if g.strip()]
         if globs and not _paths_in_scope(globs):
             return None  # scoped lesson, wrong neighborhood: shape match alone isn't enough
-        reason = (f"stark-memory shield — this command matches HIGH severity lesson "
-                  f"[{best['date']}] {best['title']}. "
-                  f"Prevention: {L.field(best, 'Prevention')[:250] or 'see lesson'}. "
-                  f"Confirm only if this is intentional.")
-        _store({"ts": int(time.time()), "project": project_dir,
-                "shield": True, "lesson": best["title"], "hits": hits}, dedup=False)
-        _toast("stark-memory shield", f"blocked: {cmd[:80]}\n{best['title']}")
-        return reason[:600]
+        auto = mode in AUTO_MODES
+        if auto and os.environ.get("STARK_SHIELD_AUTO", "deny") == "allow":
+            _store({"ts": int(time.time()), "project": project_dir, "shield": True,
+                    "lesson": best["title"], "hits": hits, "mode": mode,
+                    "decision": "allowed"})
+            _toast("stark-memory shield (allowed)", f"{cmd[:90]}\n{best['title']}")
+            return None  # stand-down mode: logged and toasted, but not blocked
+        if auto:
+            head = ("stark-memory shield — BLOCKED automatically (auto mode, no human "
+                    "to confirm). This command matches HIGH severity lesson "
+                    f"[{best['date']}] {best['title']}.")
+            tail = (" Do NOT retry the same command. Follow the prevention above or "
+                    "propose a safer alternative.")
+            decision = "deny"
+        else:
+            head = (f"stark-memory shield — this command matches HIGH severity lesson "
+                    f"[{best['date']}] {best['title']}.")
+            tail = " Confirm only if this is intentional."
+            decision = "ask"
+        prevention = L.field(best, "Prevention")[:250] or "see lesson"
+        reason = f"{head} Prevention: {prevention}.{tail}"
+        _store({"ts": int(time.time()), "project": project_dir, "shield": True,
+                "lesson": best["title"], "hits": hits, "mode": mode,
+                "decision": decision}, dedup=False)
+        _toast("stark-memory shield",
+               f"{decision}: {cmd[:80]}\n{best['title']}")
+        return json.dumps({"decision": decision, "reason": reason[:600]})
     except Exception:
         return None
 
@@ -274,12 +298,13 @@ def main():
                 pass
         if payload.get("hook_event_name") == "PreToolUse":
             cmd = (payload.get("tool_input") or {}).get("command") or ""
-            reason = shield(cmd, cwd) if cmd else None
-            if reason:
+            res = shield(cmd, cwd, payload.get("permission_mode") or "default") if cmd else None
+            if res:
+                d = json.loads(res)
                 print(json.dumps({"hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
-                    "permissionDecision": "ask",
-                    "permissionDecisionReason": reason}}))
+                    "permissionDecision": d["decision"],
+                    "permissionDecisionReason": d["reason"]}}))
             return 0
         cmd, _err = capture(payload)
         msg = reflex(cmd, cwd) if cmd else None

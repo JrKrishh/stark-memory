@@ -72,12 +72,15 @@ build.sh deletes the data directory. Prevention: never run bare build.sh - use
 make build. Confirm only if this is intentional.
 ```
 
-- `"ask"`, never `"deny"`: a fuzzy text match must not hard-block work; the
-  human confirms with the lesson in view. The command does not execute until then.
+- `"ask"` in interactive modes, `"deny"` in auto modes (`auto`, `dontAsk`,
+  `bypassPermissions`): when no human is available to confirm, the suit refuses
+  the command itself and hands Claude the prevention rule plus a do-not-retry
+  instruction, so the agent reroutes autonomously. `STARK_SHIELD_AUTO=allow`
+  stands the guard down in auto modes (still logged and toasted) if you ever
+  want fully unrestricted automation.
 - Matching is on the command's shape and fires in any directory — that is the
-  point for destructive commands (they must be questioned everywhere), and why
-  the decision stays with the human rather than an auto-deny.
-- Firings are recorded as `{"shield": true, ...}` telemetry like reflex hits.
+  point for destructive commands (they must be questioned everywhere), which is
+  also why the decision is logged as `{"shield": true, "decision": ...}` telemetry.
 
 ## Reflex — the suit corrects mid-fight
 
