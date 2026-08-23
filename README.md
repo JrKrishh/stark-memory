@@ -2,7 +2,7 @@
 
 <img src="assets/banner.svg" width="100%" alt="stark-memory — self-improving memory for Claude Code"/>
 
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
+[![tests](https://github.com/JrKrishh/stark-memory/actions/workflows/tests.yml/badge.svg)](https://github.com/JrKrishh/stark-memory/actions/workflows/tests.yml) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) ![Python](https://img.shields.io/badge/python-3.8%2B-blue) ![Deps](https://img.shields.io/badge/dependencies-zero-success) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
 
 </div>
 
