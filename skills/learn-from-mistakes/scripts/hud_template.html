@@ -84,6 +84,13 @@ td{padding:3px 6px;border-bottom:1px solid rgba(125,232,255,.06);white-space:now
 .drow{display:flex;justify-content:space-between;padding:3px 2px;border-bottom:1px solid rgba(125,232,255,.06);font-size:11px}
 .drow span{color:var(--dim);letter-spacing:2px} .drow b{color:#cfe6f5}
 .dossier{border:1px solid rgba(125,232,255,.15);background:rgba(125,232,255,.03);padding:6px}
+.mrow{border-left:2px solid var(--dim);padding:5px 8px;margin-bottom:6px;background:rgba(125,232,255,.03)}
+.mrow.best{border-left-color:var(--gd);background:rgba(255,209,102,.05)}
+.mname{color:#e8f1fa;font-size:12px} .mrow.best .mname{color:var(--gd)}
+.mnum{color:var(--dim);font-size:10px;margin-left:10px}
+.mrate{color:var(--cy);font-size:11px;margin-left:10px}
+.mbar{height:4px;background:#0d2033;margin-top:4px}
+.mbar i{display:block;height:100%;background:var(--cy)} .mrow.best .mbar i{background:var(--gd)}
 .sug{border-left:2px solid var(--gd);background:rgba(255,209,102,.04);padding:7px 9px;margin-bottom:8px}
 .sgp{color:var(--dim);font-size:11px;margin-bottom:4px}
 .sgs{color:#ffe9bd;font-size:12px;line-height:1.45}
@@ -104,6 +111,7 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
 <div>
   <div class="panel"><h2>PROJECT DIRECTORY</h2><div id="proj_cards">$proj_cards</div></div>
   <div class="panel"><h2>PROJECT DOSSIER — CURRENT BASE</h2><div id="doss_cards">$doss_cards</div></div>
+  <div class="panel"><h2>MODEL EFFICACY — FAILURES PER SESSION</h2><div id="model_rows">$model_rows</div></div>
   <div class="panel"><h2>SYSTEM DIAGNOSTICS</h2><div id="diag">$diag</div></div>
 </div>
 
@@ -166,7 +174,7 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
 
 <script>
 const FIELDS = {posture:'text', sub:'text', core:'text', n_sh:'text', n_rf:'text', n_sv:'text', stamp:'text'};
-const BLOCKS = ['proj_cards','doss_cards','diag','sess_cards','ev_rows','les_rows','sug_rows','prom_rows'];
+const BLOCKS = ['proj_cards','doss_cards','diag','sess_cards','ev_rows','les_rows','sug_rows','prom_rows','model_rows'];
 const RINGS = {rs:'ring_s', rr:'ring_r', rv:'ring_v'};
 function patchBlock(el, html){
   if(el.innerHTML === html) return;            // nothing changed -> no DOM churn

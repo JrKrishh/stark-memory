@@ -69,8 +69,16 @@ def load_lessons():
 
 
 def env_fingerprint():
+    """Probe once, persist to disk (6h TTL). Survives server restarts, so the
+    docker row can never flicker even if Docker Desktop's CLI is slow today."""
     import platform
     import subprocess
+    cache = Path.home() / ".claude" / "stark-cache" / "env.json"
+    try:
+        if cache.exists() and time.time() - cache.stat().st_mtime < 6 * 3600:
+            return json.loads(cache.read_text(encoding="utf-8"))
+    except OSError:
+        pass
     bits = {"os": f"{platform.system()} {platform.release()}"}
     for tool in ("python", "node", "git", "docker"):
         try:
@@ -80,6 +88,11 @@ def env_fingerprint():
             bits[tool] = re.sub(r"^[^0-9]*", "", v).split()[0].rstrip(",;")
         except Exception:
             bits[tool] = "-"
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(bits), encoding="utf-8")
+    except OSError:
+        pass
     return bits
 
 
@@ -321,6 +334,17 @@ def build():
   <div class="drow"><span>LESSONS</span><b>{len(lessons)} in range</b></div>
 </div>"""
 
+    # ---- model efficacy panel ----
+    models, best_model = L._model_stats()
+    model_rows = "".join(
+        f"<div class='mrow {'best' if m['model'] == best_model else ''}'>"
+        f"<span class='mname'>{'&#9733; ' if m['model'] == best_model else ''}{esc(m['model'])}</span>"
+        f"<span class='mnum'>{m['sessions']} sess</span>"
+        f"<span class='mnum'>{m['captures']} fail</span>"
+        f"<span class='mrate'>{m['rate']:.2f}/s</span>"
+        f"<div class='mbar'><i style='width:{min(m['rate'] * 45, 100):.0f}%'></i></div></div>"
+        for m in models[:8]) or "<div class='dim'>no transcripts yet</div>"
+
     return {
         "refresh": REFRESH, "posture": posture, "pcolor": pcolor, "sub": sub,
         "core": caps, "rs": rs, "rr": rr, "rv": rv, "n_sh": n_sh, "n_rf": n_rf,
@@ -330,7 +354,7 @@ def build():
         "ev_rows": ev_rows or "<tr><td colspan=4 class='dim'>no events yet</td></tr>",
         "les_rows": les_rows or "<tr><td colspan=5 class='dim'>empty</td></tr>",
         "diag": diag, "sug_rows": sug_rows, "prom_rows": prom_rows,
-        "doss_cards": doss_cards, "ts": int(time.time())}
+        "doss_cards": doss_cards, "model_rows": model_rows, "ts": int(time.time())}
 
 
 def page():
@@ -339,7 +363,7 @@ def page():
 
 
 # ---------------- local per-user artifact server ----------------
-IDLE_MIN = float(os.environ.get("STARK_HUD_IDLE", "30"))
+IDLE_MIN = float(os.environ.get("STARK_HUD_IDLE", "120"))
 
 
 def serve(port):

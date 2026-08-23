@@ -14,6 +14,7 @@ Usage:
    python3 lessons.py stale                             # flag lessons whose paths churned since their date
    python3 lessons.py graduate <title-substring>        # scaffold the guard for a lesson
    python3 lessons.py project                            # dossier: stack, git, recent prompts
+   python3 lessons.py models                             # which model fails least per session
    python3 lessons.py copilot --suggest --prompt "<p>"   # Claude-Code-powered prompt improver
    python3 lessons.py env                               # print an environment fingerprint for Env: lines
 
@@ -787,6 +788,96 @@ def cmd_copilot(args):
     return 0
 
 
+# ---------- model efficacy ----------
+
+def _scan_models(max_projects=14, per=6):
+    """(session_id, model) for recent transcripts across all projects."""
+    base = os.path.expanduser("~/.claude/projects")
+    if not os.path.isdir(base):
+        return []
+    out = []
+    dirs = sorted((os.path.join(base, p) for p in os.listdir(base)),
+                  key=os.path.getmtime, reverse=True)
+    for pd in dirs:
+        if not os.path.isdir(pd):
+            continue
+        files = sorted((os.path.join(pd, x) for x in os.listdir(pd) if x.endswith(".jsonl")),
+                       key=os.path.getmtime, reverse=True)[:per]
+        for fp in files:
+            model = None
+            try:
+                with open(fp, encoding="utf-8", errors="replace") as f:
+                    for i, line in enumerate(f):
+                        if i > 150:
+                            break
+                        try:
+                            o = json.loads(line)
+                        except ValueError:
+                            continue
+                        if isinstance(o.get("message"), dict):
+                            model = o["message"].get("model")
+                        elif o.get("model"):
+                            model = o["model"]
+                        if model:
+                            break
+            except OSError:
+                continue
+            out.append({"sid": os.path.basename(fp)[:-6], "model": model or "unknown",
+                        "ts": int(os.path.getmtime(fp))})
+            if len(out) >= max_projects * per:
+                return out
+    return out
+
+
+def _model_stats():
+    """Aggregate failures (captures) and shields per model, all projects.
+    Returns (rows, best_model) where rows is a list of dicts."""
+    import collections
+    inbox = os.path.expanduser("~/.claude/mistakes.jsonl")
+    caps, shds = collections.defaultdict(int), collections.defaultdict(int)
+    if os.path.isfile(inbox):
+        for line in open(inbox, encoding="utf-8"):
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            sid = (e.get("session") or "")[:36]
+            if e.get("shield"):
+                shds[sid] += 1
+            elif not e.get("reflex"):
+                caps[sid] += 1
+    agg = collections.defaultdict(lambda: {"sessions": 0, "captures": 0, "shields": 0})
+    for s in _scan_models():
+        a = agg[s["model"]]
+        a["sessions"] += 1
+        a["captures"] += caps.get(s["sid"], 0)
+        a["shields"] += shds.get(s["sid"], 0)
+    rows = []
+    for m, a in agg.items():
+        rows.append({"model": m, "sessions": a["sessions"], "captures": a["captures"],
+                     "shields": a["shields"],
+                     "rate": a["captures"] / a["sessions"] if a["sessions"] else 0})
+    rows.sort(key=lambda r: -r["sessions"])
+    cand = [r for r in rows if r["sessions"] >= 2]
+    best = min(cand, key=lambda r: r["rate"])["model"] if cand else None
+    return rows, best
+
+
+def cmd_models():
+    """Which model performs cleanest — failures per session, all projects."""
+    rows, best = _model_stats()
+    if not rows:
+        print("no transcripts found yet")
+        return 0
+    print("MODEL EFFICACY — captured failures per session (recent ~84 sessions)")
+    print(f"{'MODEL':<30} {'SESS':>5} {'FAILS':>6} {'RATE':>6} {'SHIELDS':>8}")
+    for r in rows:
+        mark = "  << top performer" if r["model"] == best else ""
+        print(f"{r['model']:<30} {r['sessions']:>5} {r['captures']:>6} "
+              f"{r['rate']:>6.2f} {r['shields']:>8}{mark}")
+    return 0
+
+
 def main():
     # never let a locale codepage break printing non-ASCII lessons or telemetry
     try:
@@ -808,6 +899,8 @@ def main():
         return cmd_bootstrap(apply="--apply" in a, limit=limit)
     if a == ["project"]:
         return cmd_project()
+    if a == ["models"]:
+        return cmd_models()
     if a and a[0] == "copilot":
         return cmd_copilot(a[1:])
     if len(a) == 2 and a[0] == "save":
