@@ -13,6 +13,8 @@ Usage:
    python3 lessons.py patterns                          # cluster entries into failure classes
    python3 lessons.py stale                             # flag lessons whose paths churned since their date
    python3 lessons.py graduate <title-substring>        # scaffold the guard for a lesson
+   python3 lessons.py project                            # dossier: stack, git, recent prompts
+   python3 lessons.py copilot --suggest --prompt "<p>"   # Claude-Code-powered prompt improver
    python3 lessons.py env                               # print an environment fingerprint for Env: lines
 
 Reads the project log (.claude/LESSONS.md, found by walking up from cwd) and the
@@ -603,6 +605,188 @@ def cmd_graduate(term):
     return 0
 
 
+# ---------- project dossier & prompt copilot ----------
+
+CACHE_DIR = os.path.expanduser("~/.claude/stark-cache")
+
+
+def _slugify(p):
+    # Claude Code's ~/.claude/projects dir naming: ':' -> '-', '\'|'/' -> '-'
+    return p.replace("\\", "-").replace("/", "-").replace(":", "-")
+
+
+def _transcript_dir(project_dir):
+    return os.path.join(os.path.expanduser("~/.claude/projects"), _slugify(project_dir))
+
+
+def _recent_prompts(project_dir, limit=10):
+    """User prompts from this project's recent Claude Code transcripts."""
+    d = _transcript_dir(project_dir)
+    if not os.path.isdir(d):
+        return []
+    files = sorted((os.path.join(d, f) for f in os.listdir(d) if f.endswith(".jsonl")),
+                   key=os.path.getmtime, reverse=True)
+    prompts = []
+    for fp in files:
+        if len(prompts) >= limit:
+            break
+        try:
+            with open(fp, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    try:
+                        o = json.loads(line)
+                    except ValueError:
+                        continue
+                    if o.get("type") != "user":
+                        continue
+                    msg = o.get("message") or {}
+                    if msg.get("isMeta"):
+                        continue
+                    c = msg.get("content")
+                    if isinstance(c, str):
+                        text = c
+                    elif isinstance(c, list):
+                        text = " ".join(b.get("text", "") for b in c if isinstance(b, dict))
+                    else:
+                        continue
+                    text = text.strip()
+                    if len(text) >= 10 and not text.startswith("<") and not text.startswith("Caveat:"):
+                        prompts.append(text)
+                        if len(prompts) >= limit:
+                            break
+        except OSError:
+            continue
+    return prompts
+
+
+def _detect_stack(project_dir):
+    stack = []
+    names = os.listdir(project_dir) if os.path.isdir(project_dir) else []
+    checks = [("package.json", "node"), ("pyproject.toml", "python"),
+              ("requirements.txt", "python"), ("go.mod", "go"),
+              ("Cargo.toml", "rust"), ("composer.json", "php"),
+              ("pom.xml", "java"), ("Dockerfile", "docker"),
+              (".csproj", "dotnet"), ("*.ts", "typescript")]
+    for n, label in checks:
+        if any(fnmatch.fnmatch(x, n) for x in names):
+            stack.append(label)
+    return sorted(set(stack)) or ["plain"]
+
+
+def _project_digest(project_dir):
+    """Bounded dossier: stack, file count, git remote + last commit, prompts."""
+    info = {"path": project_dir, "stack": _detect_stack(project_dir),
+            "files": 0, "git_remote": "", "last_commit": "", "prompts": []}
+    if os.path.isdir(project_dir):
+        n = 0
+        for root, dirs, files in os.walk(project_dir):
+            dirs[:] = [d for d in dirs if d not in (".git", "node_modules", "__pycache__",
+                                                    ".venv", "venv", "dist", "build", ".next")]
+            n += len(files)
+            if n > 4000:
+                break
+        info["files"] = n
+    rem = git(["remote", "get-url", "origin"], check=False)
+    if rem:
+        info["git_remote"] = rem.strip().splitlines()[-1]
+    last = git(["log", "-1", "--format=%h|%ad|%s", "--date=short"], check=False)
+    if last:
+        info["last_commit"] = last.strip().splitlines()[0]
+    info["prompts"] = _recent_prompts(project_dir, 6)
+    return info
+
+
+def cmd_project():
+    """Print this project's dossier (stack, git, recent prompts)."""
+    d = _project_digest(os.getcwd())
+    print(f"PROJECT DOSSIER — {d['path']}")
+    print(f"  stack:    {', '.join(d['stack'])}")
+    print(f"  files:    {d['files']} (bounded walk)")
+    print(f"  remote:   {d['git_remote'] or '-'}")
+    print(f"  commit:   {d['last_commit'] or '-'}")
+    if d["prompts"]:
+        print(f"\nRECENT PROMPTS ({len(d['prompts'])}):")
+        for i, p in enumerate(d["prompts"], 1):
+            print(f"  [{i}] {p[:110]}")
+    else:
+        print("\nno user prompts found in this project's transcripts yet")
+    return 0
+
+
+def _save_cache(name, obj):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    with open(os.path.join(CACHE_DIR, name), "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+
+
+def _load_cache(name):
+    try:
+        with open(os.path.join(CACHE_DIR, name), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def cmd_copilot(args):
+    """Copilot: --suggest <prompt> uses Claude Code itself (inner claude -p,
+    recursion-guarded) to improve a prompt for THIS project. --history prints
+    recent prompts. --cache prints the suggestion cache."""
+    if "--history" in args:
+        for i, p in enumerate(_recent_prompts(os.getcwd(), 10), 1):
+            print(f"[{i}] {p}")
+        return 0
+    if "--cache" in args:
+        c = _load_cache("copilot.json") or {"suggestions": []}
+        for s in c["suggestions"][-5:]:
+            print(f"— {s['ts']} | {s['prompt'][:60]}\n  -> {s['suggestion'][:160]}\n")
+        return 0
+    prompt = ""
+    if "--prompt" in args:
+        i = args.index("--prompt")
+        prompt = args[i + 1] if i + 1 < len(args) else ""
+    if not prompt:
+        print("usage: lessons.py copilot --suggest --prompt \"<the prompt>\" [--json]")
+        return 2
+    d = _project_digest(os.getcwd())
+    context = (
+        f"Project: {os.path.basename(os.getcwd())}\n"
+        f"Stack: {', '.join(d['stack'])}\n"
+        f"Files: {d['files']}\n"
+        f"Last commit: {d['last_commit'] or '-'}\n"
+        f"Recent user prompts:\n" + "\n".join(f"- {p}" for p in d["prompts"][:6]) +
+        "\n\n"
+        f"The user just typed this prompt into Claude Code in THIS project:\n"
+        f"\"{prompt}\"\n\n"
+        "Rewrite it into ONE stronger prompt. Keep the same intent and language. "
+        "Make it specific to this project: reference real files, stack, or past "
+        "work when relevant. Do not add features they didn't ask for. "
+        "Output ONLY the improved prompt text, nothing else."
+    )
+    env = dict(os.environ, STARK_COPILOT_INNER="1")
+    import shutil
+    exe = shutil.which("claude.cmd") or shutil.which("claude.exe") or shutil.which("claude") or "claude"
+    try:
+        p = subprocess.run([exe, "-p", context, "--max-turns", "1"],
+                           capture_output=True, timeout=50, env=env)
+        suggestion = (p.stdout or b"").decode("utf-8", "replace").strip() \
+            or (p.stderr or b"").decode("utf-8", "replace").strip()
+    except Exception:
+        suggestion = ""
+    if not suggestion:
+        print("copilot: inner Claude Code call failed")
+        return 1
+    c = _load_cache("copilot.json") or {"suggestions": []}
+    c["suggestions"] = (c["suggestions"][-20:]) + [{
+        "ts": time.strftime("%m-%d %H:%M"), "prompt": prompt,
+        "suggestion": suggestion[:600], "project": os.path.basename(os.getcwd())}]
+    _save_cache("copilot.json", c)
+    if "--json" in args:
+        print(json.dumps({"suggestion": suggestion[:600]}))
+    else:
+        print("IMPROVED PROMPT:\n\n" + suggestion[:600])
+    return 0
+
+
 def main():
     # never let a locale codepage break printing non-ASCII lessons or telemetry
     try:
@@ -622,6 +806,10 @@ def main():
     if a and a[0] == "bootstrap":
         limit = int(a[a.index("--limit") + 1]) if "--limit" in a else 300
         return cmd_bootstrap(apply="--apply" in a, limit=limit)
+    if a == ["project"]:
+        return cmd_project()
+    if a and a[0] == "copilot":
+        return cmd_copilot(a[1:])
     if len(a) == 2 and a[0] == "save":
         return cmd_save(a[1])
     if a and a[0] == "inbox":

@@ -283,6 +283,30 @@ def render():
                                 ("inbox", f"{len(events)} events"),
                                 ("logs", f"{len(lessons)} entries")])
 
+    # ---- copilot panel ----
+    cop = L._load_cache("copilot.json") or {}
+    sug_rows = "".join(
+        f"<div class='sug'><div class='sgp'>{esc(s['prompt'][:80])}</div>"
+        f"<div class='sgs'>&raquo; {esc(s['suggestion'][:170])}</div>"
+        f"<div class='dim' style='font-size:10px'>{esc(s['ts'])} · {esc(s['project'])}</div></div>"
+        for s in cop.get("suggestions", [])[-3:][::-1]) or "<div class='dim'>no suggestions yet — set STARK_COPILOT=1 and type a short prompt in Claude Code</div>"
+    prompts = L._recent_prompts(os.getcwd(), 4)
+    prom_rows = "".join(
+        f"<div class='prom'><span class='dim'>[{i}]</span> {esc(p[:90])}</div>"
+        for i, p in enumerate(prompts, 1)) or "<div class='dim'>no prompts recorded in this project yet</div>"
+
+    # ---- dossier panel ----
+    doss = L._project_digest(os.getcwd())
+    doss_cards = f"""
+<div class="dossier">
+  <div class="drow"><span>PATH</span><b>{esc(doss['path'][:48])}</b></div>
+  <div class="drow"><span>STACK</span><b>{' · '.join(doss['stack'])}</b></div>
+  <div class="drow"><span>FILES</span><b>{doss['files']}</b></div>
+  <div class="drow"><span>REMOTE</span><b>{esc((doss['git_remote'] or '-')[:40])}</b></div>
+  <div class="drow"><span>COMMIT</span><b>{esc((doss['last_commit'] or '-')[:52])}</b></div>
+  <div class="drow"><span>LESSONS</span><b>{len(lessons)} in range</b></div>
+</div>"""
+
     tpl = Template((HERE / "hud_template.html").read_text(encoding="utf-8"))
     return tpl.substitute(
         refresh=REFRESH, posture=posture, pcolor=pcolor, sub=sub,
@@ -291,7 +315,7 @@ def render():
         proj_cards="".join(proj_cards), sess_cards="".join(sess_cards),
         ev_rows=ev_rows or "<tr><td colspan=4 class='dim'>no events yet</td></tr>",
         les_rows=les_rows or "<tr><td colspan=5 class='dim'>empty</td></tr>",
-        diag=diag)
+        diag=diag, sug_rows=sug_rows, prom_rows=prom_rows, doss_cards=doss_cards)
 
 
 def main():
