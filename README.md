@@ -35,6 +35,22 @@ flowchart LR
 
 ---
 
+## When to reach for this — the use cases
+
+| You are... | stark-memory gives you |
+|---|---|
+| A solo dev on a long-lived repo | Claude stops re-discovering the same fix: the reflex injects the logged solution the moment a known failure reappears |
+| A team sharing one codebase | Commit `.claude/LESSONS.md` and every teammate's Claude inherits the scars — one person's outage becomes everyone's guard |
+| Running risky ops (prod DBs, infra scripts, deploy tooling) | The shield asks for human confirmation *before* a command matching a high-severity lesson executes |
+| Onboarding Claude to a legacy codebase | `bootstrap` mines your git history's fix/revert commits into draft lessons, so day one starts with years of context |
+| Working in a monorepo | Logs and manifests resolve by walking up from cwd — sessions nested deep inside packages still see the workspace's lessons |
+| Tired of writing the same "don't do X here" in every prompt | Log it once with a **Prevention** line; every future session is told automatically at start |
+
+The common thread: anything you'd otherwise re-explain to Claude — or re-suffer —
+every session, becomes a one-time log entry that enforces itself.
+
+---
+
 ## Install
 
 ### Option A — Plugin (recommended: one command, hooks included)
@@ -126,6 +142,53 @@ Merge into `~/.claude/settings.json`:
 
 A `SessionStart` hook can inject your lesson logs into context every session:
 [`references/session-start-hook.md`](skills/learn-from-mistakes/references/session-start-hook.md).
+
+---
+
+## Set up a specific project (5 minutes)
+
+Installing the plugin arms the machinery globally; this is how you point it at one
+codebase. Run these from the project root (with the manual install the scripts live at
+`~/.claude/skills/learn-from-mistakes/scripts/`; with the plugin install, just ask
+Claude in a session — *"run lessons.py project-init"* — it knows where they are):
+
+```bash
+cd ~/code/my-api
+
+# 1 · Teach sessions what this project IS
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py project-init
+#   -> scaffolds .claude/stark-project.md; fill in Purpose / Structure /
+#      Workflow / Failure shapes. Injected into every session at start.
+
+# 2 · Seed the lessons log from git history (optional but a great day-one)
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py bootstrap          # preview drafts
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py bootstrap --apply  # append to .claude/LESSONS.md
+#   -> mines fix/revert commits into draft lessons; review them, replace the
+#      UNVERIFIED lines, delete drafts with no reusable insight.
+#      (No history worth mining? Start empty from references/log-template.md.)
+
+# 3 · Commit the project's memory so teammates inherit it
+git add .claude/LESSONS.md .claude/stark-project.md
+git commit -m "add stark-memory project brain"
+```
+
+From then on the loop runs itself: failures in this project are captured to the
+JARVIS inbox as they happen, the reflex injects logged fixes when a known failure
+recurs, and `Severity: high` lessons shield their commands. Your only recurring
+job is triage at a natural stopping point:
+
+```bash
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py inbox          # what failed lately?
+# log the keepers (or ask Claude to debrief), then:
+python ~/.claude/skills/learn-from-mistakes/scripts/lessons.py inbox --clear
+```
+
+Two rules of thumb that keep the log sharp:
+
+- **Write the Prevention line for a stranger.** "Be careful with build.sh" prevents
+  nothing; "never run ./build.sh — always `make build`" is enforceable.
+- **Scope with Paths globs.** `- **Paths:** db/migrations/**` is what lets
+  `preflight` and the shield fire in the right neighborhood and stay silent elsewhere.
 
 ---
 
