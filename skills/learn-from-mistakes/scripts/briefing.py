@@ -51,12 +51,13 @@ def main():
         new_today = sum(1 for e in lessons if e["date"].strip().endswith(today)
                         or today in L.field(e, "Recurred"))
 
-        models, best = L._model_stats()
+        models, best, min_calls = L._model_stats()
         if best:
-            rate = next((f"{m['rate']:.2f}/s" for m in models if m["model"] == best), "?")
+            rate = next((f"{m['rate100']:.1f}/100cmds" for m in models
+                         if m["model"] == best and m["rate100"] is not None), "?")
             mline = f"{best} ({rate})"
         else:
-            mline = "-"
+            mline = f"none qualified ({min_calls}+ commands needed)"
 
         print("=== JARVIS BRIEFING · last 24h ===")
         print(f"  threats intercepted: {shields}   failures captured: {captures}   reflexes: {reflexes}")

@@ -334,16 +334,22 @@ def build():
   <div class="drow"><span>LESSONS</span><b>{len(lessons)} in range</b></div>
 </div>"""
 
-    # ---- model efficacy panel ----
-    models, best_model = L._model_stats()
-    model_rows = "".join(
-        f"<div class='mrow {'best' if m['model'] == best_model else ''}'>"
-        f"<span class='mname'>{'&#9733; ' if m['model'] == best_model else ''}{esc(m['model'])}</span>"
-        f"<span class='mnum'>{m['sessions']} sess</span>"
-        f"<span class='mnum'>{m['captures']} fail</span>"
-        f"<span class='mrate'>{m['rate']:.2f}/s</span>"
-        f"<div class='mbar'><i style='width:{min(m['rate'] * 45, 100):.0f}%'></i></div></div>"
-        for m in models[:8]) or "<div class='dim'>no transcripts yet</div>"
+    # ---- model efficacy panel (failures per 100 commands; crown needs volume) ----
+    models, best_model, min_calls = L._model_stats()
+    rows_html = []
+    for m in models[:8]:
+        rate_txt = f"{m['rate100']:.1f}/100c" if m["rate100"] is not None else "—"
+        star = "&#9733; " if m["model"] == best_model else ""
+        rows_html.append(
+            f"<div class='mrow {'best' if m['model'] == best_model else ''}'>"
+            f"<span class='mname'>{star}{esc(m['model'])}</span>"
+            f"<span class='mnum'>{m['sessions']} sess · {m['calls']} calls · {m['captures']} fail</span>"
+            f"<span class='mrate'>{rate_txt}</span>"
+            f"<div class='mbar'><i style='width:{min((m['rate100'] or 0) * 8, 100):.0f}%'></i></div></div>")
+    model_rows = "".join(rows_html) or "<div class='dim'>no transcripts yet</div>"
+    if not best_model and rows_html:
+        model_rows += (f"<div class='dim' style='margin-top:6px'>crown withheld — "
+                       f"no model has {min_calls}+ command-runs yet</div>")
 
     return {
         "refresh": REFRESH, "posture": posture, "pcolor": pcolor, "sub": sub,

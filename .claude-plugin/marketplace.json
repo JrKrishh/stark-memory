@@ -10,7 +10,7 @@
       "name": "stark-memory",
       "source": "./",
       "description": "Lessons logs + JARVIS telemetry + reflex fix injection + high-severity command shield",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "author": {
         "name": "Boopathi Raja"
       },

@@ -1,7 +1,7 @@
 {
   "name": "stark-memory",
   "description": "Self-improving memory for Claude Code: lessons logs, JARVIS failure telemetry, reflex fix-injection, and a shield that gates high-severity commands before they run",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "author": {
     "name": "Boopathi Raja"
   },

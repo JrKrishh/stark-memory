@@ -790,8 +790,14 @@ def cmd_copilot(args):
 
 # ---------- model efficacy ----------
 
+MIN_CALLS = 50  # a model needs this many command-runs before it can be crowned
+
+
 def _scan_models(max_projects=14, per=6):
-    """(session_id, model) for recent transcripts across all projects."""
+    """(session_id, model, bash_calls) for recent transcripts, all projects.
+
+    bash_calls counts tool_use Bash blocks via raw substring scan (fast,
+    approximate by design)."""
     base = os.path.expanduser("~/.claude/projects")
     if not os.path.isdir(base):
         return []
@@ -805,33 +811,34 @@ def _scan_models(max_projects=14, per=6):
                        key=os.path.getmtime, reverse=True)[:per]
         for fp in files:
             model = None
+            bash_calls = 0
             try:
                 with open(fp, encoding="utf-8", errors="replace") as f:
                     for i, line in enumerate(f):
-                        if i > 150:
-                            break
-                        try:
-                            o = json.loads(line)
-                        except ValueError:
-                            continue
-                        if isinstance(o.get("message"), dict):
-                            model = o["message"].get("model")
-                        elif o.get("model"):
-                            model = o["model"]
-                        if model:
-                            break
+                        if '"type":"tool_use"' in line and '"name":"Bash"' in line:
+                            bash_calls += 1
+                        if model is None and i < 150:
+                            try:
+                                o = json.loads(line)
+                            except ValueError:
+                                continue
+                            if isinstance(o.get("message"), dict):
+                                model = o["message"].get("model")
+                            elif o.get("model"):
+                                model = o["model"]
             except OSError:
                 continue
             out.append({"sid": os.path.basename(fp)[:-6], "model": model or "unknown",
-                        "ts": int(os.path.getmtime(fp))})
+                        "bash_calls": bash_calls, "ts": int(os.path.getmtime(fp))})
             if len(out) >= max_projects * per:
                 return out
     return out
 
 
 def _model_stats():
-    """Aggregate failures (captures) and shields per model, all projects.
-    Returns (rows, best_model) where rows is a list of dicts."""
+    """Failures per 100 Bash commands per model. The crown is withheld unless a
+    model has >= MIN_CALLS command-runs — small clean samples prove nothing.
+    Returns (rows, best_model, min_calls)."""
     import collections
     inbox = os.path.expanduser("~/.claude/mistakes.jsonl")
     caps, shds = collections.defaultdict(int), collections.defaultdict(int)
@@ -846,35 +853,46 @@ def _model_stats():
                 shds[sid] += 1
             elif not e.get("reflex"):
                 caps[sid] += 1
-    agg = collections.defaultdict(lambda: {"sessions": 0, "captures": 0, "shields": 0})
+    agg = collections.defaultdict(lambda: {"sessions": 0, "calls": 0,
+                                           "captures": 0, "shields": 0})
     for s in _scan_models():
         a = agg[s["model"]]
         a["sessions"] += 1
+        a["calls"] += s["bash_calls"]
         a["captures"] += caps.get(s["sid"], 0)
         a["shields"] += shds.get(s["sid"], 0)
     rows = []
     for m, a in agg.items():
-        rows.append({"model": m, "sessions": a["sessions"], "captures": a["captures"],
-                     "shields": a["shields"],
-                     "rate": a["captures"] / a["sessions"] if a["sessions"] else 0})
-    rows.sort(key=lambda r: -r["sessions"])
-    cand = [r for r in rows if r["sessions"] >= 2]
-    best = min(cand, key=lambda r: r["rate"])["model"] if cand else None
-    return rows, best
+        rows.append({"model": m, "sessions": a["sessions"], "calls": a["calls"],
+                     "captures": a["captures"], "shields": a["shields"],
+                     "rate100": (a["captures"] / a["calls"] * 100) if a["calls"] else None})
+    rows.sort(key=lambda r: -(r["calls"] or 0))
+    cand = [r for r in rows if r["calls"] and r["calls"] >= MIN_CALLS]
+    best = min(cand, key=lambda r: r["rate100"])["model"] if cand else None
+    return rows, best, MIN_CALLS
 
 
 def cmd_models():
-    """Which model performs cleanest — failures per session, all projects."""
-    rows, best = _model_stats()
+    """Which model performs cleanest — failures per 100 commands, all projects."""
+    rows, best, min_calls = _model_stats()
     if not rows:
         print("no transcripts found yet")
         return 0
-    print("MODEL EFFICACY — captured failures per session (recent ~84 sessions)")
-    print(f"{'MODEL':<30} {'SESS':>5} {'FAILS':>6} {'RATE':>6} {'SHIELDS':>8}")
+    print("MODEL EFFICACY — captured failures per 100 Bash commands")
+    print(f"{'MODEL':<30} {'SESS':>5} {'CALLS':>7} {'FAILS':>6} {'/100c':>7} {'SHIELDS':>8}")
     for r in rows:
         mark = "  << top performer" if r["model"] == best else ""
-        print(f"{r['model']:<30} {r['sessions']:>5} {r['captures']:>6} "
-              f"{r['rate']:>6.2f} {r['shields']:>8}{mark}")
+        rate = f"{r['rate100']:.1f}" if r["rate100"] is not None else "—"
+        print(f"{r['model']:<30} {r['sessions']:>5} {r['calls']:>7} {r['captures']:>6} "
+              f"{rate:>7} {r['shields']:>8}{mark}")
+    if best:
+        print(f"\nTOP PERFORMER: {best} (>= {min_calls} command-runs) — "
+              "by failures per 100 commands, not raw luck on tiny samples.")
+    else:
+        print(f"\nCROWN WITHHELD — no model has >= {min_calls} command-runs yet. "
+              "A model with 4 quiet sessions proves nothing; come back after more flight hours.")
+    print("note: failures counted only for sessions where stark-memory was live; "
+          "command counts are approximate raw scans.")
     return 0
 
 
