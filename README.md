@@ -199,30 +199,17 @@ Recipes: [`references/automation-ladder.md`](skills/learn-from-mistakes/referenc
 
 ---
 
-## JARVIS HUD — your own private artifact, always on
+## Tracking without a dashboard
 
-Every install gets a **per-user HUD artifact**: a local web app served on a port
-derived from your username, auto-started by every Claude Code session, live-updating
-in place (no reloads), and self-cleaning when you stop watching.
+stark-memory reports *to you* instead of waiting to be watched:
 
-- **URL**: `http://127.0.0.1:<your-port>` — port = 8787 + hash(username) % 200.
-  Find it in your session output ("stark-hud artifact up at …"), or run
-  `python skills/learn-from-mistakes/scripts/hud_guard.py` manually.
-- **Zero setup**: the plugin's SessionStart hook launches it if it's down, so it's
-  alive whenever you work and frees itself after ~30 idle minutes.
-- Two users on one machine get two independent artifacts (own port, own telemetry,
-  own lessons, own copilot cache).
-
-The deck: reactor core + shield/reflex/save gauges, live event stream, session
-intel with expandable command logs, project directory, project dossier, prompt
-copilot with improved-request suggestions, lesson ledger, diagnostics.
-
-```bash
-# manual controls
-python skills/learn-from-mistakes/scripts/hud.py --serve --port 8799   # foreground server
-python skills/learn-from-mistakes/scripts/hud.py                        # one-shot HTML file
-python skills/learn-from-mistakes/scripts/hud_guard.py                  # ensure-it-is-up
-```
+- **JARVIS briefing** — every session opens with a 10-line sitrep: threats
+  intercepted, failures captured, top failure zone, top model by
+  failures-per-100-commands, inbox backlog.
+- **Shield toasts** — a destructive command blocked mid-flight pops a system
+  notification instantly.
+- **CLI deep-dives** — `lessons.py stats | models | inbox` whenever you want the
+  full ledger.
 
 ---
 
@@ -252,9 +239,11 @@ skills/
 └── learn-from-mistakes/
     ├── SKILL.md                      # the skill itself
     ├── scripts/
-    │   ├── lessons.py                # search · preflight · inbox · recall · patterns · stale · graduate
-    │   ├── jarvis_inbox.py           # shield (PreToolUse) + capture & reflex (PostToolUseFailure)
-    │   └── hud.py                    # JARVIS-style live dashboard (--watch)
+    │   ├── lessons.py                # search · preflight · inbox · recall · patterns · stale · graduate · project · models · copilot
+    │   ├── jarvis_inbox.py           # shield (PreToolUse) + capture & reflex (PostToolUseFailure) + toasts
+    │   ├── copilot_hook.py           # UserPromptSubmit: Claude-Code-powered prompt improver
+    │   ├── briefing.py               # session-start sitrep
+    │   └── toast.ps1                 # Windows notification helper
     └── references/
         ├── log-template.md           # initial LESSONS.md structure & categories
         ├── automation-ladder.md      # recipes for turning lessons into guards
