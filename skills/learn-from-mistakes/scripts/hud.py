@@ -25,6 +25,19 @@ OUT = Path(os.environ.get("STARK_HUD_OUT") or Path.home() / ".claude" / "stark-h
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
 REFRESH = 5
 
+# ---------- TTL cache: slow things must not be re-measured every poll ----------
+_CACHE = {}
+
+
+def _cached(key, ttl, fn):
+    now = time.time()
+    hit = _CACHE.get(key)
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    val = fn()
+    _CACHE[key] = (now, val)
+    return val
+
 
 # ---------------- data ----------------
 def load_events():
@@ -197,10 +210,11 @@ def fmt_age(ts):
 def build():
     events = load_events()
     lessons = load_lessons()
-    transcripts = load_transcripts()
+    # docker/node/git version probes are slow and erratic on Windows — 10 min TTL
+    env = _cached("env", 600, env_fingerprint)
+    transcripts = _cached("transcripts", 30, load_transcripts)
     sessions, _ = merge_sessions(events, transcripts)
     projects = build_projects(events, transcripts)
-    env = env_fingerprint()
 
     caps = sum(1 for e in events if kind(e) == "capture")
     n_sh = sum(1 for e in events if kind(e) == "shield")
@@ -296,7 +310,7 @@ def build():
         for i, p in enumerate(prompts, 1)) or "<div class='dim'>no prompts recorded in this project yet</div>"
 
     # ---- dossier panel ----
-    doss = L._project_digest(os.getcwd())
+    doss = _cached("doss", 60, lambda: L._project_digest(os.getcwd()))
     doss_cards = f"""
 <div class="dossier">
   <div class="drow"><span>PATH</span><b>{esc(doss['path'][:48])}</b></div>

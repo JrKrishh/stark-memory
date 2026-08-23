@@ -168,16 +168,29 @@ footer{text-align:center;color:var(--dim);font-size:10px;letter-spacing:3px;marg
 const FIELDS = {posture:'text', sub:'text', core:'text', n_sh:'text', n_rf:'text', n_sv:'text', stamp:'text'};
 const BLOCKS = ['proj_cards','doss_cards','diag','sess_cards','ev_rows','les_rows','sug_rows','prom_rows'];
 const RINGS = {rs:'ring_s', rr:'ring_r', rv:'ring_v'};
+function patchBlock(el, html){
+  if(el.innerHTML === html) return;            // nothing changed -> no DOM churn
+  let openStates = [];
+  if(el.id === 'sess_cards'){                  // keep expanded cards expanded
+    openStates = [...el.querySelectorAll('details')].map(d => d.open);
+  }
+  el.innerHTML = html;
+  if(openStates.length){
+    el.querySelectorAll('details').forEach((d, i) => { if(openStates[i]) d.open = true; });
+  }
+}
 async function poll(){
   try{
     const d = await (await fetch('/api/data')).json();
-    for(const k of Object.keys(FIELDS)){const el=document.getElementById(k); if(el) el.textContent=d[k];}
-    for(const k of BLOCKS){const el=document.getElementById(k); if(el&&d[k]!==undefined) el.innerHTML=d[k];}
+    for(const k of Object.keys(FIELDS)){const el=document.getElementById(k); if(el&&el.textContent!==String(d[k])) el.textContent=d[k];}
+    for(const k of BLOCKS){const el=document.getElementById(k); if(el&&d[k]!==undefined) patchBlock(el, d[k]);}
     for(const k of Object.keys(RINGS)){
-      const el=document.getElementById(RINGS[k]); if(el) el.setAttribute('stroke-dasharray', d[k]+' 400');
+      const el=document.getElementById(RINGS[k]);
+      const v = d[k]+' 400';
+      if(el&&el.getAttribute('stroke-dasharray')!==v) el.setAttribute('stroke-dasharray', v);
     }
     const p=document.getElementById('posture');
-    if(p) p.style.color=d.pcolor;
+    if(p&&p.style.color!==d.pcolor) p.style.color=d.pcolor;
   }catch(e){}
 }
 setInterval(poll, 5000);
