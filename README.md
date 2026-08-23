@@ -268,6 +268,23 @@ skills/
 
 Python 3.8+ (standard library only) · Claude Code · git (for `preflight`/`bootstrap`)
 
+## Development
+
+The test suite lives in `tests/` and needs only `pytest` (the plugin itself stays
+zero-dependency):
+
+```bash
+python -m pip install pytest
+python -m pytest
+```
+
+It covers the lessons-log parsing core, the `save`/`bootstrap` log mutations, the
+JARVIS shield/reflex/capture logic (including the false-positive strictness rules),
+and an end-to-end hook contract: every hook script must exit 0 and emit valid JSON —
+or nothing — on good, empty, and garbage input, so a regression can never break a
+user's session. CI runs the suite on Linux, Windows, and macOS against Python 3.8
+and 3.12.
+
 ## License
 
 [MIT](LICENSE) © Boopathi Raja

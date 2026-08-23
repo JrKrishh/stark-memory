@@ -23,6 +23,8 @@ def find_up(name):
 
 
 def emit(label, path):
+    if path is None:
+        return
     try:
         text = path.read_text(encoding="utf-8", errors="replace")[:4000]
     except OSError:
