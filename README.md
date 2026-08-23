@@ -18,7 +18,7 @@ a known failure reappears, and JARVIS telemetry that records every failure autom
 Lessons compound instead of evaporating when the session ends.
 
 <div align="center">
-<img src="assets/terminal.svg" width="100%" alt="The shield intercepting a destructive command before it runs"/>
+<img src="assets/demo.gif" width="100%" alt="Demo: the shield stopping a destructive command before it runs, then the reflex injecting a logged fix the moment a known failure recurs"/>
 </div>
 
 ```mermaid
