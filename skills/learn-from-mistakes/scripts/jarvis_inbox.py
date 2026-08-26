@@ -40,6 +40,8 @@ EXIT_RE = re.compile(r"^Exit code (\d+)")
 STOPWORDS = {"powershell", "bash", "pwsh", "python", "python3", "node",
              "npm", "npx", "git", "echo", "sudo", "cmd", "exit", "code"}
 MIN_HITS = 2      # distinct command tokens that must appear in an entry to fire
+GENERIC_ANCHORS = {"pattern", "command", "process", "shell", "line", "text",
+                   "string", "input", "output", "file", "path", "system"}
 
 
 def _tokens(cmd):
@@ -66,17 +68,41 @@ def _failure_text(L, e):
     return t if len(t) >= 25 else e["title"] + " " + e["body"]
 
 
-def _best_match(toks):
-    """Best lesson whose failure-side text contains >=MIN_HITS command tokens.
-    Returns (entry, hits) or (None, 0). Strict on purpose."""
+def _anchors(e, L):
+    """Danger anchors: alphanumeric tokens (>=4 chars) from the backtick code
+    spans in the entry's title/trigger - the actual commands the lesson is
+    about (e.g. pkill, pgrep). Generic nouns are excluded so prose about
+    'processes' can't anchor a match. Empty set -> lesson has no named
+    command -> anchors don't gate it."""
+    spans = []
+    for field in ("title", "Trigger"):
+        spans += re.findall(r"`([^`]+)`", L.field(e, field) or "")
+    out = set()
+    for s in spans:
+        for tok in re.split(r"[^a-zA-Z0-9_]+", s):
+            t = tok.lower()
+            if len(t) >= 4 and t not in GENERIC_ANCHORS and t not in STOPWORDS:
+                out.add(t)
+    return out
+
+
+def _best_match(toks, cmd=""):
+    """Best lesson whose failure-side text contains >=MIN_HITS command tokens,
+    AND whose danger anchors (if any) actually appear in the command. Without
+    the anchor gate, a heredoc writing prose about 'processes' and 'commands'
+    matched the pkill lesson despite containing no pkill."""
     try:
         import lessons as L  # sibling module in scripts/
     except Exception:
         return None, 0
     try:
+        cmd_l = (cmd or "").lower()
         best, best_hits = None, 0
         for scope, path in L.find_logs():
             for e in L.parse_entries(path):
+                anchors = _anchors(e, L)
+                if anchors and not any(a in cmd_l for a in anchors):
+                    continue  # names a dangerous command this command doesn't contain
                 text = _failure_text(L, e).lower()
                 hits = sum(1 for t in toks if t in text)
                 if hits > best_hits:
@@ -177,7 +203,7 @@ def capture(payload):
 
 def reflex(cmd, project_dir):
     """Match this failure against the lesson logs; return injection text or None."""
-    best, hits = _best_match(_tokens(cmd))
+    best, hits = _best_match(_tokens(cmd), cmd)
     if not best:
         return None
     try:
@@ -244,7 +270,7 @@ def shield(cmd, project_dir, mode="default"):
         import lessons as L
     except Exception:
         return None
-    best, hits = _best_match(_tokens(cmd))
+    best, hits = _best_match(_tokens(cmd), cmd)
     if not best:
         return None
     try:
